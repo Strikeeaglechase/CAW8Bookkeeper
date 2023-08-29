@@ -1,0 +1,26 @@
+import { CommandRun } from "strike-discord-framework/dist/argumentParser.js";
+import { Command, CommandEvent } from "strike-discord-framework/dist/command.js";
+
+import { Application } from "../../application.js";
+
+class Run extends Command {
+	name = "run";
+	altNames = [];
+	allowDm = true;
+	help = {
+		msg: "Reads the OP google sheet then parses awards and history",
+		usage: "",
+	};
+
+	@CommandRun
+	async run({ message, framework, app }: CommandEvent<Application>) {
+		const workingMessage = await message.channel.send(framework.success("Working..."));
+
+		const resultPath = await app.runSheetUpdate();
+		if (!resultPath) return workingMessage.edit(framework.error("Failed to parse sheets!"));
+		message.channel.send({ files: [resultPath] });
+		workingMessage.delete();
+	}
+}
+
+export default Run;
