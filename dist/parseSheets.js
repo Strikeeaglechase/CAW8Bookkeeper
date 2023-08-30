@@ -12,7 +12,7 @@ import { JWT } from "google-auth-library";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 const SHEET_ID = "12Fr3aL16m1-uuL3e1R_z4ErUH2lc8dktgpePyUloQHs";
 const columNameMap = {
-    "name": "Name",
+    "uniqueName": "Name",
     "callsign": "Callsign",
     "type": "Type",
     "bolters": "Bolters",
@@ -77,10 +77,10 @@ class Op {
         }
     }
     hasMember(name) {
-        return this.members.some(member => member.name == name);
+        return this.members.some(member => member.uniqueName == name);
     }
     getMember(name) {
-        return this.members.find(member => member.name == name);
+        return this.members.find(member => member.uniqueName == name);
     }
     parseOpMemberRow(row, mapping) {
         const member = {};
@@ -89,6 +89,10 @@ class Op {
             const cell = this.sheet.getCell(row, column);
             member[key] = cell.value;
         });
+        if (member.uniqueName) {
+            member.displayName = member.uniqueName;
+            member.uniqueName = member.uniqueName.toLowerCase();
+        }
         return member;
     }
     loadColumnMap(row) {
@@ -178,7 +182,7 @@ class GoogleSheetParser {
                 }
             }
             const members = new Set();
-            ops.forEach(op => op.members.forEach(member => members.add(member.name)));
+            ops.forEach(op => op.members.forEach(member => members.add(member.uniqueName)));
             members.forEach(member => {
                 this.parseMember(member, ops);
             });
@@ -194,7 +198,7 @@ class GoogleSheetParser {
         ops.forEach(op => {
             var _a, _b;
             const member = op.getMember(memberName);
-            const opName = `${op.name} ${op.timeslot}`;
+            const opName = `${op.name}`;
             if (!member)
                 return;
             let deathLog = "";
@@ -225,12 +229,12 @@ class GoogleSheetParser {
             }
             let achievements = "";
             if (opsWithoutDeath >= 5) {
-                this.achievementHistory += `After ${opName}, ${memberName} has not died in 5 ops!\n`;
+                this.achievementHistory += `After ${opName}, ${member.displayName} has not died in 5 ops!\n`;
                 opsWithoutDeath = 0;
                 achievements += "[FIVE OPS WITHOUT DEATH] ";
             }
             if (opsWithoutBolter >= 5) {
-                this.achievementHistory += `After ${opName}, ${memberName} has not boltered in 5 ops!\n`;
+                this.achievementHistory += `After ${opName}, ${member.displayName} has not boltered in 5 ops!\n`;
                 opsWithoutBolter = 0;
                 achievements += "[FIVE OPS WITHOUT BOLTER]";
             }

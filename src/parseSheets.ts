@@ -7,7 +7,8 @@ import Logger from "strike-discord-framework/dist/logger.js";
 const SHEET_ID = "12Fr3aL16m1-uuL3e1R_z4ErUH2lc8dktgpePyUloQHs";
 
 interface OpMember {
-	name: string;
+	uniqueName: string;
+	displayName: string;
 	callsign: string;
 	type: string;
 	bolters: string;
@@ -30,8 +31,8 @@ interface Op {
 	config: OpConfig;
 }
 
-const columNameMap: Record<keyof OpMember, string> = {
-	"name": "Name",
+const columNameMap = {
+	"uniqueName": "Name",
 	"callsign": "Callsign",
 	"type": "Type",
 	"bolters": "Bolters",
@@ -40,7 +41,7 @@ const columNameMap: Record<keyof OpMember, string> = {
 	"combatDeaths": "Combat Deaths",
 	"promotions": "Promotions",
 	"remarks": "Remarks",
-};
+} as Record<keyof OpMember, string>;
 
 type ColumnMap = Record<keyof OpMember, number>;
 
@@ -102,11 +103,11 @@ class Op {
 	}
 
 	public hasMember(name: string) {
-		return this.members.some(member => member.name == name);
+		return this.members.some(member => member.uniqueName == name);
 	}
 
 	public getMember(name: string) {
-		return this.members.find(member => member.name == name);
+		return this.members.find(member => member.uniqueName == name);
 	}
 
 	private parseOpMemberRow(row: number, mapping: ColumnMap): OpMember {
@@ -116,6 +117,11 @@ class Op {
 			const cell = this.sheet.getCell(row, column);
 			member[key] = cell.value as string;
 		});
+
+		if (member.uniqueName) {
+			member.displayName = member.uniqueName;
+			member.uniqueName = member.uniqueName.toLowerCase();
+		}
 
 		return member;
 	}
@@ -217,7 +223,7 @@ class GoogleSheetParser {
 		}
 
 		const members: Set<string> = new Set();
-		ops.forEach(op => op.members.forEach(member => members.add(member.name)));
+		ops.forEach(op => op.members.forEach(member => members.add(member.uniqueName)));
 
 		members.forEach(member => {
 			this.parseMember(member, ops);
@@ -237,7 +243,7 @@ class GoogleSheetParser {
 
 		ops.forEach(op => {
 			const member = op.getMember(memberName);
-			const opName = `${op.name} ${op.timeslot}`;
+			const opName = `${op.name}`;
 			if (!member) return;
 
 			let deathLog = "";
@@ -267,13 +273,13 @@ class GoogleSheetParser {
 
 			let achievements = "";
 			if (opsWithoutDeath >= 5) {
-				this.achievementHistory += `After ${opName}, ${memberName} has not died in 5 ops!\n`;
+				this.achievementHistory += `After ${opName}, ${member.displayName} has not died in 5 ops!\n`;
 				opsWithoutDeath = 0;
 				achievements += "[FIVE OPS WITHOUT DEATH] ";
 			}
 
 			if (opsWithoutBolter >= 5) {
-				this.achievementHistory += `After ${opName}, ${memberName} has not boltered in 5 ops!\n`;
+				this.achievementHistory += `After ${opName}, ${member.displayName} has not boltered in 5 ops!\n`;
 				opsWithoutBolter = 0;
 				achievements += "[FIVE OPS WITHOUT BOLTER]";
 			}
