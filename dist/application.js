@@ -33,7 +33,7 @@ class Application {
             if (!result)
                 return;
             this.log.info(`Got sheets result, writing to archive`);
-            const { achievementHistory, memberHistory } = result;
+            const { achievementHistory, opAchievementLog, members } = result;
             const archive = Archiver("zip");
             const resultPath = path.resolve(`../results/${new Date().toISOString().split(":").join("")}.zip`);
             const output = fs.createWriteStream(resultPath);
@@ -42,9 +42,10 @@ class Application {
             }));
             archive.pipe(output);
             archive.append(achievementHistory, { name: "achievements.txt" });
-            Object.keys(memberHistory).forEach(member => {
+            archive.append(opAchievementLog, { name: "opHistory.txt" });
+            Object.keys(members).forEach(member => {
                 const name = member.split(" ").join("_");
-                archive.append(memberHistory[member], { name: `${name}.txt` });
+                archive.append(members[member].history, { name: `${name}.txt` });
             });
             archive.finalize();
             yield completionPromise;

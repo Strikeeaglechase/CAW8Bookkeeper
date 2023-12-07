@@ -12,15 +12,15 @@ import { JWT } from "google-auth-library";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 const SHEET_ID = "12Fr3aL16m1-uuL3e1R_z4ErUH2lc8dktgpePyUloQHs";
 const columNameMap = {
-    "uniqueName": "Name",
-    "callsign": "Callsign",
-    "type": "Type",
-    "bolters": "Bolters",
-    "wire": "Wire No.",
-    "lsoGrade": "LSO Grade",
-    "combatDeaths": "Combat Deaths",
-    "promotions": "Promotions",
-    "remarks": "Remarks",
+    uniqueName: "Name",
+    callsign: "Callsign",
+    type: "Type",
+    bolters: "Bolters",
+    wire: "Wire No.",
+    lsoGrade: "LSO Grade",
+    combatDeaths: "Combat Deaths",
+    promotions: "Promotions",
+    remarks: "Remarks"
 };
 const defaultConfig = { countBolters: true, countDeaths: true };
 var Change;
@@ -145,20 +145,19 @@ class GoogleSheetParser {
     constructor(sheetId, framework) {
         this.sheetId = sheetId;
         this.framework = framework;
-        this.memberHistory = {};
+        // private memberHistory: Record<string, string> = {};
+        this.members = {};
         this.achievementHistory = "";
+        this.opAchievementLog = {};
         this.log = framework.log;
     }
     loadCreds() {
         const creds = JSON.parse(fs.readFileSync("../caw8-creds.json", "utf8"));
-        const SCOPES = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive.file',
-        ];
+        const SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive.file"];
         const jwt = new JWT({
             email: creds.client_email,
             key: creds.private_key,
-            scopes: SCOPES,
+            scopes: SCOPES
         });
         return jwt;
     }
@@ -182,17 +181,32 @@ class GoogleSheetParser {
                 }
             }
             const members = new Set();
-            ops.forEach(op => op.members.forEach(member => members.add(member.uniqueName)));
+            ops.forEach(op => {
+                op.members.forEach(member => members.add(member.uniqueName));
+                this.opAchievementLog[op.name] = `------ ${op.name} ------\n`;
+            });
             members.forEach(member => {
                 this.parseMember(member, ops);
             });
             this.log.info("Done parsing!");
-            return { memberHistory: this.memberHistory, achievementHistory: this.achievementHistory };
+            let fullOpAchievementLog = "";
+            Object.keys(this.opAchievementLog).forEach(opName => {
+                fullOpAchievementLog += this.opAchievementLog[opName];
+            });
+            return {
+                members: this.members,
+                achievementHistory: this.achievementHistory,
+                opAchievementLog: fullOpAchievementLog
+            };
         });
     }
     parseMember(memberName, ops) {
-        this.memberHistory[memberName] = "";
-        const log = (message) => this.memberHistory[memberName] += message + "\n";
+        this.members[memberName] = {
+            fiveOpsWithoutBolter: 0,
+            fiveOpsWithoutDeath: 0,
+            history: ""
+        };
+        const log = (message) => (this.members[memberName].history += message + "\n");
         let opsWithoutDeath = 0;
         let opsWithoutBolter = 0;
         ops.forEach(op => {
@@ -232,11 +246,15 @@ class GoogleSheetParser {
                 this.achievementHistory += `After ${opName}, ${member.displayName} has not died in 5 ops!\n`;
                 opsWithoutDeath = 0;
                 achievements += "[FIVE OPS WITHOUT DEATH] ";
+                this.members[memberName].fiveOpsWithoutBolter++;
+                this.opAchievementLog[op.name] += `[FIVE OPS WITHOUT DEATH] ${member.displayName}. They now have this award ${this.members[memberName].fiveOpsWithoutBolter} times\n`;
             }
             if (opsWithoutBolter >= 5) {
                 this.achievementHistory += `After ${opName}, ${member.displayName} has not boltered in 5 ops!\n`;
                 opsWithoutBolter = 0;
                 achievements += "[FIVE OPS WITHOUT BOLTER]";
+                this.members[memberName].fiveOpsWithoutDeath++;
+                this.opAchievementLog[op.name] += `[FIVE OPS WITHOUT BOLTER] ${member.displayName}. They now have this award ${this.members[memberName].fiveOpsWithoutDeath} times\n`;
             }
             log(`${opName}: ${deathLog} ${bolterLog} Wire: ${(_a = member.wire) !== null && _a !== void 0 ? _a : "N/A"} Remarks: ${(_b = member.remarks) !== null && _b !== void 0 ? _b : "N/A"} ${achievements}`);
         });
@@ -244,7 +262,9 @@ class GoogleSheetParser {
 }
 function test() {
     return __awaiter(this, void 0, void 0, function* () {
-        const parser = new GoogleSheetParser(SHEET_ID, { log: { info: (m) => console.log(m) } });
+        const parser = new GoogleSheetParser(SHEET_ID, {
+            log: { info: m => console.log(m) }
+        });
         yield parser.init();
         const result = yield parser.run();
         fs.writeFileSync("../result.json", JSON.stringify(result, null, 2));

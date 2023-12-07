@@ -32,26 +32,25 @@ interface Op {
 }
 
 const columNameMap = {
-	"uniqueName": "Name",
-	"callsign": "Callsign",
-	"type": "Type",
-	"bolters": "Bolters",
-	"wire": "Wire No.",
-	"lsoGrade": "LSO Grade",
-	"combatDeaths": "Combat Deaths",
-	"promotions": "Promotions",
-	"remarks": "Remarks",
+	uniqueName: "Name",
+	callsign: "Callsign",
+	type: "Type",
+	bolters: "Bolters",
+	wire: "Wire No.",
+	lsoGrade: "LSO Grade",
+	combatDeaths: "Combat Deaths",
+	promotions: "Promotions",
+	remarks: "Remarks"
 } as Record<keyof OpMember, string>;
 
 type ColumnMap = Record<keyof OpMember, number>;
-
 
 const defaultConfig: OpConfig = { countBolters: true, countDeaths: true };
 
 enum Change {
 	NoChange,
 	Passed,
-	Failed,
+	Failed
 }
 
 function parseEvent(value: string, ignoreBecauseOfConfig: boolean): Change {
@@ -66,7 +65,7 @@ class Op {
 	public name: string;
 	public members: OpMember[] = [];
 
-	private constructor(private sheet: GoogleSpreadsheetWorksheet, public timeslot: string, public config: OpConfig, private startRow: number) { }
+	private constructor(private sheet: GoogleSpreadsheetWorksheet, public timeslot: string, public config: OpConfig, private startRow: number) {}
 
 	public static fromSheet(sheet: GoogleSpreadsheetWorksheet) {
 		console.log(`Loading op ${sheet.title}`);
@@ -163,7 +162,6 @@ class Op {
 
 		if (configRow == -1) return config;
 
-
 		for (let row = configRow + 1; row < sheet.rowCount; row++) {
 			const cell = sheet.getCell(row, configColumn);
 			if (!cell.value) continue;
@@ -176,12 +174,26 @@ class Op {
 	}
 }
 
+interface SheetParseResult {
+	members: Record<string, OverallMember>;
+	achievementHistory: string;
+	opAchievementLog: string;
+}
+
+interface OverallMember {
+	history: string;
+	fiveOpsWithoutDeath: number;
+	fiveOpsWithoutBolter: number;
+}
 class GoogleSheetParser {
 	private log: Logger;
 	private doc: GoogleSpreadsheet;
 
-	private memberHistory: Record<string, string> = {};
+	// private memberHistory: Record<string, string> = {};
+	private members: Record<string, OverallMember> = {};
 	private achievementHistory = "";
+
+	private opAchievementLog: Record<string, string> = {};
 
 	constructor(private sheetId: string, private framework: FrameworkClient) {
 		this.log = framework.log;
@@ -190,15 +202,12 @@ class GoogleSheetParser {
 	private loadCreds() {
 		const creds = JSON.parse(fs.readFileSync("../caw8-creds.json", "utf8"));
 
-		const SCOPES = [
-			'https://www.googleapis.com/auth/spreadsheets',
-			'https://www.googleapis.com/auth/drive.file',
-		];
+		const SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive.file"];
 
 		const jwt = new JWT({
 			email: creds.client_email,
 			key: creds.private_key,
-			scopes: SCOPES,
+			scopes: SCOPES
 		});
 
 		return jwt;
@@ -211,7 +220,7 @@ class GoogleSheetParser {
 		this.log.info(`Loaded document: ${this.doc.title}`);
 	}
 
-	public async run() {
+	public async run(): Promise<SheetParseResult> {
 		const ops: Op[] = [];
 		const nonOpSheets = ["Operations Record", "Awards Record"];
 		for (const sheet of this.doc.sheetsByIndex) {
@@ -223,7 +232,10 @@ class GoogleSheetParser {
 		}
 
 		const members: Set<string> = new Set();
-		ops.forEach(op => op.members.forEach(member => members.add(member.uniqueName)));
+		ops.forEach(op => {
+			op.members.forEach(member => members.add(member.uniqueName));
+			this.opAchievementLog[op.name] = `------ ${op.name} ------\n`;
+		});
 
 		members.forEach(member => {
 			this.parseMember(member, ops);
@@ -231,12 +243,26 @@ class GoogleSheetParser {
 
 		this.log.info("Done parsing!");
 
-		return { memberHistory: this.memberHistory, achievementHistory: this.achievementHistory };
+		let fullOpAchievementLog = "";
+		Object.keys(this.opAchievementLog).forEach(opName => {
+			fullOpAchievementLog += this.opAchievementLog[opName];
+		});
+
+		return {
+			members: this.members,
+			achievementHistory: this.achievementHistory,
+			opAchievementLog: fullOpAchievementLog
+		};
 	}
 
 	private parseMember(memberName: string, ops: Op[]) {
-		this.memberHistory[memberName] = "";
-		const log = (message: string) => this.memberHistory[memberName] += message + "\n";
+		this.members[memberName] = {
+			fiveOpsWithoutBolter: 0,
+			fiveOpsWithoutDeath: 0,
+			history: ""
+		};
+
+		const log = (message: string) => (this.members[memberName].history += message + "\n");
 
 		let opsWithoutDeath = 0;
 		let opsWithoutBolter = 0;
@@ -270,18 +296,27 @@ class GoogleSheetParser {
 				bolterLog = `No trap (${member.bolters})`;
 			}
 
-
 			let achievements = "";
 			if (opsWithoutDeath >= 5) {
 				this.achievementHistory += `After ${opName}, ${member.displayName} has not died in 5 ops!\n`;
 				opsWithoutDeath = 0;
 				achievements += "[FIVE OPS WITHOUT DEATH] ";
+				this.members[memberName].fiveOpsWithoutBolter++;
+
+				this.opAchievementLog[
+					op.name
+				] += `[FIVE OPS WITHOUT DEATH] ${member.displayName}. They now have this award ${this.members[memberName].fiveOpsWithoutBolter} times\n`;
 			}
 
 			if (opsWithoutBolter >= 5) {
 				this.achievementHistory += `After ${opName}, ${member.displayName} has not boltered in 5 ops!\n`;
 				opsWithoutBolter = 0;
 				achievements += "[FIVE OPS WITHOUT BOLTER]";
+				this.members[memberName].fiveOpsWithoutDeath++;
+
+				this.opAchievementLog[
+					op.name
+				] += `[FIVE OPS WITHOUT BOLTER] ${member.displayName}. They now have this award ${this.members[memberName].fiveOpsWithoutDeath} times\n`;
 			}
 
 			log(`${opName}: ${deathLog} ${bolterLog} Wire: ${member.wire ?? "N/A"} Remarks: ${member.remarks ?? "N/A"} ${achievements}`);
@@ -290,7 +325,9 @@ class GoogleSheetParser {
 }
 
 async function test() {
-	const parser = new GoogleSheetParser(SHEET_ID, { log: { info: (m) => console.log(m) } } as unknown as FrameworkClient);
+	const parser = new GoogleSheetParser(SHEET_ID, {
+		log: { info: m => console.log(m) }
+	} as unknown as FrameworkClient);
 	await parser.init();
 	const result = await parser.run();
 
@@ -299,4 +336,4 @@ async function test() {
 
 // test();
 
-export { GoogleSheetParser };
+export { GoogleSheetParser, SheetParseResult };
