@@ -27,6 +27,7 @@ class Application {
 		const result = await parser.run();
 
 		if (!result) return;
+		this.lastSheetsResult = result;
 
 		this.log.info(`Got sheets result, writing to archive`);
 		const { achievementHistory, opAchievementLog, members } = result;

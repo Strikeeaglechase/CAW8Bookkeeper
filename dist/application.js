@@ -32,6 +32,7 @@ class Application {
             const result = yield parser.run();
             if (!result)
                 return;
+            this.lastSheetsResult = result;
             this.log.info(`Got sheets result, writing to archive`);
             const { achievementHistory, opAchievementLog, members } = result;
             const archive = Archiver("zip");
