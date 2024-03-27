@@ -6,7 +6,7 @@ import Logger from "strike-discord-framework/dist/logger.js";
 
 const SHEET_ID = "12Fr3aL16m1-uuL3e1R_z4ErUH2lc8dktgpePyUloQHs";
 
-interface OpMember {
+export interface OpMember {
 	uniqueName: string;
 	displayName: string;
 	callsign: string;
@@ -19,16 +19,17 @@ interface OpMember {
 	remarks: string;
 }
 
-interface OpConfig {
+export interface OpConfig {
 	countBolters: boolean;
 	countDeaths: boolean;
 }
 
-interface Op {
+export interface IOp {
 	name: string;
 	timeslot: string;
 	members: OpMember[];
 	config: OpConfig;
+	id: string;
 }
 
 const columNameMap = {
@@ -65,7 +66,7 @@ class Op {
 	public name: string;
 	public members: OpMember[] = [];
 
-	private constructor(private sheet: GoogleSpreadsheetWorksheet, public timeslot: string, public config: OpConfig, private startRow: number) {}
+	private constructor(public sheet: GoogleSpreadsheetWorksheet, public timeslot: string, public config: OpConfig, private startRow: number) {}
 
 	public static fromSheet(sheet: GoogleSpreadsheetWorksheet) {
 		console.log(`Loading op ${sheet.title}`);
@@ -241,6 +242,14 @@ class GoogleSheetParser {
 			this.parseMember(member, ops);
 		});
 
+		ops.forEach(op => {
+			op.members = op.members.filter(m => m.uniqueName != null);
+			delete op.sheet;
+		});
+		fs.writeFileSync("../ops.json", JSON.stringify(ops, null, 2));
+		return;
+		// console.log(ops);
+
 		this.log.info("Done parsing!");
 
 		let fullOpAchievementLog = "";
@@ -323,17 +332,5 @@ class GoogleSheetParser {
 		});
 	}
 }
-
-async function test() {
-	const parser = new GoogleSheetParser(SHEET_ID, {
-		log: { info: m => console.log(m) }
-	} as unknown as FrameworkClient);
-	await parser.init();
-	const result = await parser.run();
-
-	fs.writeFileSync("../result.json", JSON.stringify(result, null, 2));
-}
-
-// test();
 
 export { GoogleSheetParser, SheetParseResult };

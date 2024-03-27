@@ -2,7 +2,7 @@ import fs from "fs";
 import { CommandRun } from "strike-discord-framework/dist/argumentParser.js";
 import { Command, CommandEvent } from "strike-discord-framework/dist/command.js";
 
-import { Application } from "../../application.js";
+import { Application } from "../application.js";
 
 class Lookup extends Command {
 	name = "lookup";

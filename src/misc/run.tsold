@@ -1,7 +1,7 @@
 import { CommandRun } from "strike-discord-framework/dist/argumentParser.js";
 import { Command, CommandEvent } from "strike-discord-framework/dist/command.js";
 
-import { Application } from "../../application.js";
+import { Application } from "../application.js";
 
 class Run extends Command {
 	name = "run";
@@ -9,7 +9,7 @@ class Run extends Command {
 	allowDm = true;
 	help = {
 		msg: "Reads the OP google sheet then parses awards and history",
-		usage: "",
+		usage: ""
 	};
 
 	@CommandRun

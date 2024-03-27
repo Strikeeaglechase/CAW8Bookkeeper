@@ -1,84 +1,566 @@
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-import Archiver from "archiver";
+import { EmbedBuilder, GuildMember } from "discord.js";
 import fs from "fs";
-import path from "path";
-import { GoogleSheetParser } from "./parseSheets.js";
-const SHEET_ID = "12Fr3aL16m1-uuL3e1R_z4ErUH2lc8dktgpePyUloQHs";
-const patrickRate = 1000 * 60 * 60 * 24;
+import { JWT } from "google-auth-library";
+import { GoogleSpreadsheet } from "google-spreadsheet";
+import { v4 as uuidv4 } from "uuid";
+export const timeslots = [
+    "Monday 1200 EST",
+    "Friday 2000 EST",
+    "Saturday 1400 EST",
+    "Saturday 1600 EST",
+    "Sunday 1400 EST",
+    "Sunday 1600 EST"
+];
+const _timeslotColors = {
+    "Monday 1200 EST": [255, 229, 153],
+    "Friday 2000 EST": [255, 153, 0],
+    "Saturday 1400 EST": [164, 194, 244],
+    "Saturday 1600 EST": [234, 153, 153],
+    "Sunday 1400 EST": [147, 196, 125],
+    "Sunday 1600 EST": [255, 229, 153]
+};
+const timeslotColors = {};
+Object.keys(_timeslotColors).forEach(key => {
+    timeslotColors[key] = { red: _timeslotColors[key][0] / 255, green: _timeslotColors[key][1] / 255, blue: _timeslotColors[key][2] / 255 };
+});
+export function formatAndValidateSlot(slot) {
+    slot = slot.toUpperCase();
+    // Letter number format? A5, B2
+    if (slot.length == 2) {
+        if (slot.match(/^[A-Z]\d$/)) {
+            return slot[0] + "1-" + slot[1];
+        }
+        else
+            return null;
+    }
+    // Letter hyphen number format? A-2, B-5
+    if (slot.match(/^[A-Z]-\d$/)) {
+        return slot[0] + "1-" + slot[2];
+    }
+    // Either A12 or A1-2 format
+    if (!slot.includes("-")) {
+        const start = slot.slice(0, 2);
+        const end = slot.slice(2);
+        slot = `${start}-${end}`;
+    }
+    const valid = slot.match(/^[A-Z]\d-\d\d?$/);
+    if (!valid)
+        return null;
+    return slot;
+}
+export function replyOrEdit(iter, content) {
+    if (iter.replied || iter.deferred) {
+        return iter.editReply(content);
+    }
+    else {
+        return iter.reply(content);
+    }
+}
+export const wireScore = (wire) => {
+    switch (wire) {
+        case 1:
+            return 0.25;
+        case 2:
+            return 0.5;
+        case 3:
+            return 1;
+        case 4:
+            return 0.5;
+        default:
+            return 0;
+    }
+};
 class Application {
+    framework;
+    log;
+    lastSheetsResult;
+    ops;
+    users;
+    slots;
+    configDb;
+    userSelectedOps = {};
+    activeOp;
     constructor(framework) {
         this.framework = framework;
         this.log = framework.log;
     }
-    init() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.log.info(`Application has started!`);
-            setInterval(() => {
-                this.checkPatrick();
-            }, 30000);
+    async init() {
+        this.log.info(`Application has started!`);
+        this.ops = await this.framework.database.collection("ops", false, "id");
+        this.slots = await this.framework.database.collection("slots", false, "id");
+        this.users = await this.framework.database.collection("users", false, "id");
+        this.configDb = await this.framework.database.collection("config", false, "id");
+        this.framework.client.on("guildMemberUpdate", async (oldMember, newMember) => {
+            if (oldMember.nickname != newMember.nickname) {
+                const channelId = (await this.getConfig()).nicknameNotifyChannel;
+                if (!channelId)
+                    return;
+                const channel = newMember.guild.channels.cache.get(channelId);
+                if (!channel)
+                    return;
+                const embed = new EmbedBuilder();
+                embed.setTitle(newMember.user.username);
+                embed.setDescription(`Nickname change \`${oldMember.nickname}\` -> \`${newMember.nickname}\``);
+                channel.send({ embeds: [embed] });
+            }
         });
-    }
-    checkPatrick() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!fs.existsSync("../patrick.txt"))
+        // const groupedOps: Record<string, DBOp[]> = {};
+        // const ops = await this.ops.collection.find({}).toArray();
+        // ops.forEach(op => {
+        // 	const group = groupedOps[op.name] ?? [];
+        // 	group.push(op);
+        // 	groupedOps[op.name] = group;
+        // });
+        // const keys = Object.keys(groupedOps);
+        // let hitFirst = false;
+        // for (const opName of keys) {
+        // 	if (opName == "BLUE MOON") hitFirst = true;
+        // 	if (!hitFirst) continue;
+        // 	const group = groupedOps[opName];
+        // 	await this.uploadOpsToSheet(group);
+        // 	console.log(`Uploaded ops for ${opName}`);
+        // }
+        // const ops = await this.ops.collection.find({ name: "Test" }).toArray();
+        // await this.uploadOpsToSheet(ops);
+        const oldOps = JSON.parse(fs.readFileSync("../ops.json", "utf8"));
+        const dbOps = oldOps
+            .map(op => {
+            const match = op.timeslot.match(/(\w+) ([\w\d]+)/);
+            const [_, day, time] = [...match];
+            const idx = op.name.indexOf(day);
+            const name = op.name.slice(0, idx).trim();
+            if (!name.startsWith("OP: ") && !name.startsWith("EX: "))
                 return;
-            const [lastPatrickTime, patrickIndex] = fs.readFileSync("../patrick.txt", "utf-8").split("\n");
-            const lastTime = parseInt(lastPatrickTime);
-            const index = parseInt(patrickIndex);
-            const currentTime = Date.now();
-            if (currentTime - lastTime < patrickRate)
+            const pureName = name.slice(4).trim();
+            let opIsInvalid = false;
+            const dbOpMembers = op.members
+                .map(member => {
+                let bolters = member.bolters;
+                let completion = "Arrested";
+                let memberValid = true;
+                if (member.displayName == "DO NOT REMOVE")
+                    memberValid = false;
+                if (member.displayName == null || member.displayName.trim().length == 0)
+                    memberValid = false;
+                switch (member.callsign) {
+                    case "EWO":
+                    case "Gunner":
+                    case "CPG":
+                    case "WSO":
+                    case "- WSO":
+                    case "WIZARD":
+                        completion = "Nonpilot";
+                        break;
+                    case "REDFOR":
+                    case "REDFOR 11":
+                    case "REDFOR 12":
+                        completion = "NA";
+                        break;
+                    case null:
+                        memberValid = false;
+                        break;
+                    default:
+                        const isTypical = member.callsign.match(/^\w\d\d$/);
+                        if (!isTypical) {
+                            memberValid = false;
+                        }
+                }
+                if (typeof member.bolters != "number") {
+                    switch (member.bolters) {
+                        case "DNF":
+                            completion = "DNF";
+                            break;
+                        case "VERT":
+                            completion = "Vertical";
+                            break;
+                        case "WSO":
+                        case "Gunner":
+                        case "WIZARD":
+                        case "EWO":
+                        case "LSO":
+                            completion = "Nonpilot";
+                            break;
+                        case "AIR FIELD":
+                            completion = "Airfield";
+                            break;
+                        case "VTOL":
+                            completion = "Vertical";
+                            break;
+                        case "N/A":
+                        case "REDFOR":
+                        case null:
+                            completion = "NA";
+                            break;
+                        default:
+                            console.log(`Unknown bolter type: ${member.bolters}`);
+                    }
+                    bolters = null;
+                }
+                if (typeof member.wire != "number" && completion == "Arrested") {
+                    switch (member.wire) {
+                        case "DNF":
+                            completion = "DNF";
+                            break;
+                        case "VTOL":
+                        case "VERT":
+                            completion = "Vertical";
+                            break;
+                        case "LSO":
+                            completion = "Nonpilot";
+                            break;
+                        case "N/A":
+                        case null:
+                            completion = "NA";
+                            break;
+                        default:
+                            console.log(`Unknown wire type: ${member.wire}`);
+                    }
+                    member.wire = null;
+                }
+                if (typeof member.combatDeaths != "number" && completion != "Nonpilot" && completion != "DNF") {
+                    switch (member.combatDeaths) {
+                        // console.log(member, op.name);
+                        case "Gunner":
+                        case "EWO":
+                        case "WIZARD":
+                        case "CPG":
+                        case "WSO":
+                            completion = "Nonpilot";
+                            break;
+                        case "REDFOR":
+                        case "N/A":
+                            completion = "NA";
+                            break;
+                        case undefined:
+                            opIsInvalid = true;
+                            break;
+                        default:
+                            member.combatDeaths = 0;
+                        // console.log(`Unknown combat deaths: ${member.combatDeaths}`);
+                        // console.log(member);
+                        // console.log(op.name);
+                    }
+                    if (typeof member.combatDeaths != "number")
+                        member.combatDeaths = null;
+                }
+                if (opIsInvalid || !memberValid)
+                    return null;
+                if (completion != "Arrested") {
+                    bolters = null;
+                    member.wire = null;
+                }
+                if (typeof member.combatDeaths != "number")
+                    member.combatDeaths = null;
+                const isNormCallsign = member.callsign.match(/^\w\d\d$/);
+                if (!isNormCallsign) {
+                    member.callsign = null;
+                }
+                const acMap = {
+                    "AV-42": "AV-42C",
+                    "AV-42C": "AV-42C",
+                    "F/A-26B": "F/A-26B",
+                    "F-45A": "F-45A",
+                    "AH-94": "AH-94",
+                    "T-55": "T-55",
+                    "EF-24G": "EF-24G",
+                    "WSO": "T-55",
+                    "Gunner": "AH-94",
+                    "F-14A+": "F/A-26B",
+                    "F-117N": "F-45A",
+                    "F/A-18C": "T-55",
+                    "F/A-18D": "T-55",
+                    "AH-1W": "AH-94",
+                    "F/A-26J": "F/A-26B"
+                };
+                if (member.type != null) {
+                    const ac = acMap[member.type];
+                    if (member.type in acMap) {
+                        member.type = ac;
+                    }
+                }
+                const dbMember = {
+                    name: member.displayName,
+                    slot: member.callsign,
+                    aircraft: member.type,
+                    type: completion,
+                    combatDeaths: member.combatDeaths,
+                    bolters: bolters,
+                    wire: member.wire,
+                    promotions: member.promotions,
+                    remarks: member.remarks
+                };
+                return dbMember;
+            })
+                .filter(m => m != null);
+            if (opIsInvalid)
                 return;
-            this.log.info(`Patrick time!`);
-            const patrickChannel = (yield this.framework.client.channels.fetch("1182879117486588018").catch(() => null));
-            if (!patrickChannel)
+            const dayTimeTimeslotMap = {
+                SATURDAY1400EST: "Saturday 1400 EST",
+                SATURDAY1600EST: "Saturday 1600 EST",
+                SUNDAY1400EST: "Sunday 1400 EST",
+                SUNDAY1600EST: "Sunday 1600 EST",
+                MONDAY1200EST: "Monday 1200 EST",
+                FRIDAY2000EST: "Friday 2000 EST"
+            };
+            let timeKey = day + time;
+            if (!(timeKey in dayTimeTimeslotMap)) {
+                timeKey = day;
+            }
+            if (!(timeKey in dayTimeTimeslotMap)) {
+                console.log(`Invalid timeslot: ${timeKey}`);
                 return;
-            const imageUrl = fs.readdirSync("../patrick")[index];
-            patrickChannel.send({
-                content: "<@&1182876876860035083> Patrick time!",
-                files: [path.resolve(`../patrick/${imageUrl}`)]
+            }
+            const timeslot = dayTimeTimeslotMap[timeKey];
+            const dbOp = {
+                id: uuidv4(),
+                members: dbOpMembers,
+                name: pureName,
+                timeslot: timeslot
+            };
+            return dbOp;
+        })
+            .filter(op => op != null);
+        const opUsersToAdd = [];
+        dbOps.forEach(op => {
+            op.members.forEach(member => {
+                const existingUser = opUsersToAdd.find(u => u.username == member.name);
+                if (!existingUser) {
+                    opUsersToAdd.push({ id: uuidv4(), username: member.name, discordId: null });
+                }
             });
-            fs.writeFileSync("../patrick.txt", `${currentTime}\n${index + 1}`);
         });
+        await Promise.all(opUsersToAdd.map(async (u) => {
+            const existing = await this.users.collection.findOne({ username: u.username });
+            if (!existing)
+                await this.users.add(u);
+        }));
+        await Promise.all(dbOps.map(async (op) => {
+            const existing = await this.ops.collection.findOne({ name: op.name, timeslot: op.timeslot });
+            if (!existing)
+                await this.ops.add(op);
+        }));
     }
-    runSheetUpdate() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.log.info("Starting to parse sheets!");
-            if (!fs.existsSync("../results"))
-                fs.mkdirSync("../results");
-            const parser = new GoogleSheetParser(SHEET_ID, this.framework);
-            yield parser.init();
-            const result = yield parser.run();
-            if (!result)
-                return;
-            this.lastSheetsResult = result;
-            this.log.info(`Got sheets result, writing to archive`);
-            const { achievementHistory, opAchievementLog, members } = result;
-            const archive = Archiver("zip");
-            const resultPath = path.resolve(`../results/${new Date().toISOString().split(":").join("")}.zip`);
-            const output = fs.createWriteStream(resultPath);
-            const completionPromise = new Promise(res => output.on("close", () => {
-                res();
-            }));
-            archive.pipe(output);
-            archive.append(achievementHistory, { name: "achievements.txt" });
-            archive.append(opAchievementLog, { name: "opHistory.txt" });
-            Object.keys(members).forEach(member => {
-                const name = member.split(" ").join("_");
-                archive.append(members[member].history, { name: `${name}.txt` });
-            });
-            archive.finalize();
-            yield completionPromise;
-            this.log.info("Finished parsing sheets!");
-            return resultPath;
+    async getConfig() {
+        const config = await this.configDb.collection.findOne({ id: "config" });
+        if (config)
+            return config;
+        const newConfig = {
+            id: "config",
+            commandAccessRole: null,
+            nicknameNotifyChannel: null
+        };
+        await this.configDb.add(newConfig);
+        return newConfig;
+    }
+    async setConfig(config) {
+        await this.configDb.update(config, "config");
+    }
+    async isAuthed(interaction) {
+        const config = await this.getConfig();
+        if (!config.commandAccessRole) {
+            await interaction.reply(this.framework.error("No command access role set in config", true));
+            return false;
+        }
+        if (!(interaction.member instanceof GuildMember)) {
+            await interaction.reply(this.framework.error("This command can only be run in a guild", true));
+            return false;
+        }
+        const hasRole = interaction.member.roles.cache.has(config.commandAccessRole);
+        if (!hasRole) {
+            await interaction.reply(this.framework.error("You do not have permission to run this command", true));
+            return false;
+        }
+        return true;
+    }
+    async createUser(name, discordId = null) {
+        const newUserObj = {
+            id: uuidv4(),
+            username: name,
+            discordId: discordId
+        };
+        await this.users.add(newUserObj);
+        return newUserObj;
+    }
+    async getUserByDiscordId(discordId) {
+        return await this.users.collection.findOne({ discordId: discordId });
+    }
+    table(data, tEntryMaxLen = 32) {
+        const widths = data[0].map((_, i) => Math.max(...data.map(row => String(row[i]).length)));
+        return data.map(row => row.map((val, i) => String(val).padEnd(widths[i]).substring(0, tEntryMaxLen)).join(" "));
+    }
+    async createOpDisplayEmbed(op) {
+        const embed = new EmbedBuilder();
+        embed.setTitle(`${op.name} | ${op.timeslot}`);
+        const membersGrid = [["Callsign", "Name", "Aircraft", "Bolters", "Wire", "Deaths"]];
+        const remarksPromotions = [["Name", "Promotions", "Remarks"]];
+        const aceIndexes = [];
+        op.members.forEach((member, idx) => {
+            const btRtx = member.bolters ?? "Missing Data";
+            const wireRtx = member.wire ?? "Missing Data";
+            const bolterText = member.type == "Arrested" ? btRtx : member.type;
+            const wireText = member.type == "Arrested" ? wireRtx : member.type;
+            membersGrid.push([member.slot ?? "???", member.name, member.aircraft ?? "^^^", bolterText, wireText, member.combatDeaths ?? "N/A"]);
+            if (member.promotions || member.remarks)
+                remarksPromotions.push([member.name, member.promotions ?? "-", member.remarks ?? "-"]);
+            if (member.bolters == 0 && member.combatDeaths == 0 && member.wire == 3)
+                aceIndexes.push(idx);
         });
+        const memberTable = this.table(membersGrid);
+        memberTable[0] = `[2;37m[1;37m` + memberTable[0] + `[0m[2;37m[0m`;
+        aceIndexes.forEach(aceIdx => {
+            memberTable[aceIdx + 1] = `[2;33m` + memberTable[aceIdx + 1] + `[0m`;
+        });
+        const membersText = "**Attendance:** ```ansi\n" + memberTable.join("\n") + "\n```";
+        const remarksPromotionsText = "**Remarks and Promotions:** ```\n" + this.table(remarksPromotions, 256).join("\n") + "\n```";
+        const awards = await Promise.all(op.members.map(m => this.calcOpAwards(m.name)));
+        const awardsThisOp = awards.filter(a => {
+            a.awards = a.awards.filter(award => award.afterOpId == op.id);
+            return a.awards.length > 0;
+        });
+        let awardsText = "";
+        if (awardsThisOp.length > 0) {
+            awardsText = "\n\n**Awards: **";
+            awardsThisOp.forEach(award => {
+                award.awards.forEach(a => {
+                    const aName = a.type == "fiveOpsWithoutDeath" ? "Five Ops Without Death" : "Five Ops Without Bolter";
+                    awardsText += `\n\n**${award.memberName} achieved ${aName}!**`;
+                });
+            });
+        }
+        embed.setDescription(membersText + "\n\n" + remarksPromotionsText + awardsText);
+        return embed;
+    }
+    async calcOpAwards(memberName) {
+        const opsAttended = await this.ops.collection.find({ "members.name": memberName }).toArray();
+        const awards = [];
+        let opsWithoutDeath = 0;
+        let opsWithoutBolter = 0;
+        let fullOpsWithoutDeath = 0;
+        let fullOpsWithoutBolter = 0;
+        opsAttended.forEach(op => {
+            const member = op.members.find(m => m.name == memberName);
+            if (member.combatDeaths !== null) {
+                if (member.combatDeaths == 0 && member.type != "DNF") {
+                    opsWithoutDeath++;
+                    fullOpsWithoutDeath++;
+                }
+                else if (member.combatDeaths > 0) {
+                    opsWithoutDeath = 0;
+                    fullOpsWithoutDeath = 0;
+                }
+            }
+            if (member.bolters !== null) {
+                if (member.type == "Arrested") {
+                    if (member.bolters == 0) {
+                        opsWithoutBolter++;
+                        fullOpsWithoutBolter++;
+                    }
+                    else {
+                        opsWithoutBolter = 0;
+                        fullOpsWithoutBolter = 0;
+                    }
+                }
+            }
+            if (opsWithoutDeath >= 5) {
+                awards.push({ type: "fiveOpsWithoutDeath", afterOpId: op.id });
+                opsWithoutDeath = 0;
+            }
+            if (opsWithoutBolter >= 5) {
+                awards.push({ type: "fiveOpsWithoutBolter", afterOpId: op.id });
+                opsWithoutBolter = 0;
+            }
+        });
+        return { awards, memberName, fullOpsWithoutDeath, fullOpsWithoutBolter, opsAttended };
+    }
+    loadCreds() {
+        const creds = JSON.parse(fs.readFileSync("../caw8-creds.json", "utf8"));
+        const SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive.file"];
+        const jwt = new JWT({
+            email: creds.client_email,
+            key: creds.private_key,
+            scopes: SCOPES
+        });
+        return jwt;
+    }
+    async uploadOpsToSheet(ops) {
+        if (ops.length == 0)
+            return "No ops to upload";
+        if (ops.length > 6)
+            return "Too many ops to upload at once";
+        const jwt = this.loadCreds();
+        const doc = new GoogleSpreadsheet(process.env.SHEET_ID, jwt);
+        await doc.loadInfo();
+        this.log.info(`Loaded document: ${doc.title}`);
+        let sheet;
+        const existingSheet = doc.sheetsByIndex.find(s => s.title == ops[0].name);
+        if (existingSheet) {
+            // Check if its one we are allowed to edit
+            await existingSheet.loadCells("K2");
+            const cell = existingSheet.getCellByA1("K2");
+            if (cell.value != "Bot Controlled")
+                return `Sheet ${ops[0].name} is not marked as being allowed to be edited by the bot. Set \`K2\` to \`Bot Controlled\``;
+            else
+                sheet = existingSheet;
+        }
+        if (!existingSheet) {
+            const templateSheet = doc.sheetsByIndex.find(s => s.title == "Template");
+            if (!templateSheet)
+                return "No template sheet found";
+            const newSheet = await templateSheet.duplicate({ title: ops[0].name });
+            this.log.info(`Created new sheet: ${newSheet.title}`);
+            sheet = newSheet;
+        }
+        await sheet.loadCells();
+        // Set title
+        const cell = sheet.getCell(0, 0);
+        cell.value = ops[0].name;
+        for (let i = 0; i < 14; i++) {
+            const cell = sheet.getCell(0, i);
+            cell.textFormat = { fontSize: 24, foregroundColor: { red: 1, green: 1, blue: 1 } };
+            cell.backgroundColor = { red: 0, green: 0, blue: 0 };
+        }
+        const proms = ops.map(async (op, oIdx) => {
+            const startRow = 1 + oIdx * 19;
+            await sheet.mergeCells({
+                startRowIndex: startRow,
+                endRowIndex: startRow + 1,
+                startColumnIndex: 0,
+                endColumnIndex: 10,
+                sheetId: sheet.sheetId
+            }, "MERGE_ALL");
+            const cell = sheet.getCell(startRow, 0);
+            cell.value = op.timeslot;
+            cell.textFormat = { fontSize: 10, foregroundColor: { red: 0, green: 0, blue: 0 } };
+            cell.backgroundColor = timeslotColors[op.timeslot];
+            const header = ["Name", "Callsign", "Type", "Bolters", "Wire No.", "Wire Score", "LSO Grade", "Combat Deaths", "Promotions", "Remarks"];
+            const writeCell = (row, col, value) => {
+                const cell = sheet.getCell(row, col);
+                if (value == null)
+                    value = "null";
+                cell.value = value;
+                return cell;
+            };
+            header.forEach((h, i) => {
+                const cell = writeCell(startRow + 1, i, h);
+                cell.horizontalAlignment = "CENTER";
+            });
+            op.members.forEach((member, mIdx) => {
+                const row = startRow + 2 + mIdx;
+                writeCell(row, 0, member.name);
+                writeCell(row, 1, member.slot);
+                writeCell(row, 2, member.aircraft);
+                writeCell(row, 3, member.bolters ?? member.type);
+                writeCell(row, 4, member.wire ?? member.type);
+                writeCell(row, 5, member.wire ? wireScore(member.wire) : "N/A");
+                writeCell(row, 6, "");
+                writeCell(row, 7, member.combatDeaths ?? 0);
+                writeCell(row, 8, member.promotions ?? "");
+                writeCell(row, 9, member.remarks ?? "");
+            });
+        });
+        await Promise.all(proms);
+        sheet.saveUpdatedCells();
     }
 }
 export { Application };
+//# sourceMappingURL=application.js.map
