@@ -27,7 +27,7 @@ const frameworkOptions: FrameworkClientOptions = {
 	name: "CAW8 Bookkeeper",
 	token: process.env.TOKEN,
 	ownerID: "272143648114606083",
-	slashCommandDevServer: "1222394236624965643",
+	slashCommandDevServer: "836755485935271966",
 	dmPrefixOnPing: true,
 	dmErrorSilently: false,
 	permErrorSilently: false
