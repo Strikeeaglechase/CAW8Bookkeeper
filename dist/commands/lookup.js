@@ -131,12 +131,12 @@ class Lookup extends SlashCommand {
                 inline: true
             },
             {
-                name: "Golden Wrench Awards",
+                name: "Safety 'S' Awards",
                 value: fiveOpsWithoutBolterCount.toString(),
                 inline: true
             },
             {
-                name: "Safety 'S' Awards",
+                name: "Golden Wrench Awards",
                 value: fiveOpsWithoutDeathCount.toString(),
                 inline: true
             },
