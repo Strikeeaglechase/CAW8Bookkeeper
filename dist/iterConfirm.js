@@ -11,7 +11,7 @@ export function interactionConfirm(prompt, iter) {
     const confirm = new ButtonBuilder({ label: "Confirm", customId: confirmId, style: ButtonStyle.Success });
     const cancel = new ButtonBuilder({ label: "Cancel", customId: cancelId, style: ButtonStyle.Danger });
     row.addComponents(confirm, cancel);
-    if (iter.deferred) {
+    if (iter.deferred || iter.replied) {
         iter.editReply({ embeds: [emb], components: [row] });
     }
     else {

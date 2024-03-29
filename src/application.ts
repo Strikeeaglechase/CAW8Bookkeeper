@@ -71,6 +71,7 @@ export interface Award {
 }
 
 export function formatAndValidateSlot(slot: string) {
+	if (slot == null || slot.length == 0) return null;
 	slot = slot.toUpperCase();
 	// Letter number format? A5, B2
 	if (slot.length == 2) {
@@ -119,6 +120,23 @@ export const wireScore = (wire: number) => {
 	}
 };
 
+interface OldOp {
+	timeslot: string;
+	name: string;
+	members: {
+		uniqueName: string;
+		callsign: string;
+		type: string;
+		bolters: string | number;
+		wire: string | number;
+		lsoGrade: string;
+		combatDeaths: number;
+		promotions: string;
+		remarks: string;
+		displayName: string;
+	}[];
+}
+
 interface Config {
 	commandAccessRole: string;
 	nicknameNotifyChannel: string;
@@ -163,282 +181,279 @@ class Application {
 			}
 		});
 
-		// const groupedOps: Record<string, DBOp[]> = {};
-		// const ops = await this.ops.collection.find({}).toArray();
-		// ops.forEach(op => {
-		// 	const group = groupedOps[op.name] ?? [];
-		// 	group.push(op);
-		// 	groupedOps[op.name] = group;
-		// });
-
-		// const keys = Object.keys(groupedOps);
-		// let hitFirst = false;
-		// for (const opName of keys) {
-		// 	if (opName == "BLUE MOON") hitFirst = true;
-		// 	if (!hitFirst) continue;
-		// 	const group = groupedOps[opName];
-		// 	await this.uploadOpsToSheet(group);
-		// 	console.log(`Uploaded ops for ${opName}`);
-		// }
-
-		// const ops = await this.ops.collection.find({ name: "Test" }).toArray();
-		// await this.uploadOpsToSheet(ops);
-
-		const oldOps = JSON.parse(fs.readFileSync("../ops.json", "utf8")) as {
-			timeslot: string;
-			name: string;
-			members: {
-				uniqueName: string;
-				callsign: string;
-				type: string;
-				bolters: string | number;
-				wire: string | number;
-				lsoGrade: string;
-				combatDeaths: number;
-				promotions: string;
-				remarks: string;
-				displayName: string;
-			}[];
-		}[];
-
-		const dbOps = oldOps
-			.map(op => {
-				const match = op.timeslot.match(/(\w+) ([\w\d]+)/);
-				const [_, day, time] = [...match];
-
-				const idx = op.name.indexOf(day);
-				const name = op.name.slice(0, idx).trim();
-
-				if (!name.startsWith("OP: ") && !name.startsWith("EX: ")) return;
-				const pureName = name.slice(4).trim();
-				let opIsInvalid = false;
-
-				const dbOpMembers = op.members
-					.map(member => {
-						let bolters = member.bolters;
-						let completion: CompletionType = "Arrested";
-						let memberValid = true;
-
-						if (member.displayName == "DO NOT REMOVE") memberValid = false;
-						if (member.displayName == null || member.displayName.trim().length == 0) memberValid = false;
-
-						switch (member.callsign) {
-							case "EWO":
-							case "Gunner":
-							case "CPG":
-							case "WSO":
-							case "- WSO":
-							case "WIZARD":
-								completion = "Nonpilot";
-								break;
-
-							case "REDFOR":
-							case "REDFOR 11":
-							case "REDFOR 12":
-								completion = "NA";
-								break;
-
-							case null:
-								memberValid = false;
-								break;
-
-							default:
-								const isTypical = member.callsign.match(/^\w\d\d$/);
-								if (!isTypical) {
-									memberValid = false;
-								}
-						}
-
-						if (typeof member.bolters != "number") {
-							switch (member.bolters) {
-								case "DNF":
-									completion = "DNF";
-									break;
-
-								case "VERT":
-									completion = "Vertical";
-									break;
-
-								case "WSO":
-								case "Gunner":
-								case "WIZARD":
-								case "EWO":
-								case "LSO":
-									completion = "Nonpilot";
-									break;
-
-								case "AIR FIELD":
-									completion = "Airfield";
-									break;
-
-								case "VTOL":
-									completion = "Vertical";
-									break;
-
-								case "N/A":
-								case "REDFOR":
-								case null:
-									completion = "NA";
-									break;
-
-								default:
-									console.log(`Unknown bolter type: ${member.bolters}`);
-							}
-							bolters = null;
-						}
-
-						if (typeof member.wire != "number" && completion == "Arrested") {
-							switch (member.wire) {
-								case "DNF":
-									completion = "DNF";
-									break;
-								case "VTOL":
-								case "VERT":
-									completion = "Vertical";
-									break;
-
-								case "LSO":
-									completion = "Nonpilot";
-									break;
-
-								case "N/A":
-								case null:
-									completion = "NA";
-									break;
-
-								default:
-									console.log(`Unknown wire type: ${member.wire}`);
-							}
-
-							member.wire = null;
-						}
-
-						if (typeof member.combatDeaths != "number" && completion != "Nonpilot" && completion != "DNF") {
-							switch (member.combatDeaths) {
-								// console.log(member, op.name);
-								case "Gunner":
-								case "EWO":
-								case "WIZARD":
-								case "CPG":
-								case "WSO":
-									completion = "Nonpilot";
-									break;
-
-								case "REDFOR":
-								case "N/A":
-									completion = "NA";
-									break;
-
-								case undefined:
-									opIsInvalid = true;
-									break;
-
-								default:
-									member.combatDeaths = 0;
-								// console.log(`Unknown combat deaths: ${member.combatDeaths}`);
-								// console.log(member);
-								// console.log(op.name);
-							}
-
-							if (typeof member.combatDeaths != "number") member.combatDeaths = null;
-						}
-
-						if (opIsInvalid || !memberValid) return null;
-
-						if (completion != "Arrested") {
-							bolters = null;
-							member.wire = null;
-						}
-
-						if (typeof member.combatDeaths != "number") member.combatDeaths = null;
-
-						const isNormCallsign = member.callsign.match(/^\w\d\d$/);
-						if (!isNormCallsign) {
-							member.callsign = null;
-						}
-
-						const acMap = {
-							"AV-42": "AV-42C",
-							"AV-42C": "AV-42C",
-							"F/A-26B": "F/A-26B",
-							"F-45A": "F-45A",
-							"AH-94": "AH-94",
-							"T-55": "T-55",
-							"EF-24G": "EF-24G",
-							"WSO": "T-55",
-							"Gunner": "AH-94",
-							"F-14A+": "F/A-26B",
-							"F-117N": "F-45A",
-							"F/A-18C": "T-55",
-							"F/A-18D": "T-55",
-							"AH-1W": "AH-94",
-							"F/A-26J": "F/A-26B"
-						};
-
-						if (member.type != null) {
-							const ac = acMap[member.type];
-							if (member.type in acMap) {
-								member.type = ac;
-							}
-						}
-
-						const dbMember: DBOpMember = {
-							name: member.displayName,
-							slot: member.callsign,
-							aircraft: member.type,
-							type: completion,
-							combatDeaths: member.combatDeaths,
-							bolters: bolters as number,
-							wire: member.wire as number,
-							promotions: member.promotions,
-							remarks: member.remarks
-						};
-
-						return dbMember;
-					})
-					.filter(m => m != null);
-
-				if (opIsInvalid) return;
-
-				const dayTimeTimeslotMap = {
-					SATURDAY1400EST: "Saturday 1400 EST",
-					SATURDAY1600EST: "Saturday 1600 EST",
-					SUNDAY1400EST: "Sunday 1400 EST",
-					SUNDAY1600EST: "Sunday 1600 EST",
-					MONDAY1200EST: "Monday 1200 EST",
-					FRIDAY2000EST: "Friday 2000 EST"
-				};
-				let timeKey = day + time;
-				if (!(timeKey in dayTimeTimeslotMap)) {
-					timeKey = day;
-				}
-
-				if (!(timeKey in dayTimeTimeslotMap)) {
-					console.log(`Invalid timeslot: ${timeKey}`);
-					return;
-				}
-
-				const timeslot = dayTimeTimeslotMap[timeKey];
-				const dbOp: DBOp = {
-					id: uuidv4(),
-					members: dbOpMembers,
-					name: pureName,
-					timeslot: timeslot
-				};
-
-				return dbOp;
-			})
-			.filter(op => op != null);
-
-		const opUsersToAdd: OpUser[] = [];
-		dbOps.forEach(op => {
-			op.members.forEach(member => {
-				const existingUser = opUsersToAdd.find(u => u.username == member.name);
-				if (!existingUser) {
-					opUsersToAdd.push({ id: uuidv4(), username: member.name, discordId: null });
+		const ops = await this.ops.collection.find({}).toArray();
+		ops.forEach(op => {
+			op.members.forEach(async member => {
+				const newSlot = formatAndValidateSlot(member.slot);
+				if (newSlot != member.slot) {
+					console.log(`Updating slot ${member.slot} -> ${newSlot}`);
+					await this.ops.collection.updateOne(
+						{ id: op.id },
+						{ $set: { "members.$[elm].slot": newSlot } },
+						{ arrayFilters: [{ "elm.name": member.name }] }
+					);
 				}
 			});
 		});
+
+		// const oldOps = JSON.parse(fs.readFileSync("../ops.json", "utf8")) as OldOp[];
+
+		// const opUsersToAdd: OpUser[] = [];
+		// dbOps.forEach(op => {
+		// 	op.members.forEach(member => {
+		// 		const existingUser = opUsersToAdd.find(u => u.username == member.name);
+		// 		if (!existingUser) {
+		// 			opUsersToAdd.push({ id: uuidv4(), username: member.name, discordId: null });
+		// 		}
+		// 	});
+		// });
+		// await Promise.all(
+		// 	opUsersToAdd.map(async u => {
+		// 		const existing = await this.users.collection.findOne({ username: u.username });
+		// 		if (!existing) await this.users.add(u);
+		// 	})
+		// );
+		//
+		// await Promise.all(
+		// 	dbOps.map(async op => {
+		// 		const existing = await this.ops.collection.findOne({ name: op.name, timeslot: op.timeslot });
+		// 		if (!existing) await this.ops.add(op);
+		// 	})
+		// );
+	}
+
+	private async loadOldOp(op: OldOp) {
+		const match = op.timeslot.match(/(\w+) ([\w\d]+)/);
+		const [_, day, time] = [...match];
+
+		const idx = op.name.indexOf(day);
+		const name = idx == -1 ? op.name : op.name.slice(0, idx).trim();
+
+		if (!name.startsWith("OP: ") && !name.startsWith("EX: ")) return;
+		const pureName = name.slice(4).trim();
+		let opIsInvalid = false;
+
+		const dbOpMembers = op.members
+			.map(member => {
+				let bolters = member.bolters;
+				let completion: CompletionType = "Arrested";
+				let memberValid = true;
+
+				if (member.displayName == "DO NOT REMOVE") memberValid = false;
+				if (member.displayName == null || member.displayName.trim().length == 0) memberValid = false;
+
+				switch (member.callsign) {
+					case "EWO":
+					case "Gunner":
+					case "CPG":
+					case "WSO":
+					case "- WSO":
+					case "WIZARD":
+						completion = "Nonpilot";
+						break;
+
+					case "REDFOR":
+					case "REDFOR 11":
+					case "REDFOR 12":
+						completion = "NA";
+						break;
+
+					case null:
+						memberValid = false;
+						break;
+
+					default:
+						const isTypical = member.callsign.match(/^\w\d\d$/);
+						if (!isTypical) {
+							memberValid = false;
+						}
+				}
+
+				if (typeof member.bolters != "number") {
+					switch (member.bolters) {
+						case "DNF":
+							completion = "DNF";
+							break;
+
+						case "VERT":
+							completion = "Vertical";
+							break;
+
+						case "WSO":
+						case "Gunner":
+						case "WIZARD":
+						case "EWO":
+						case "LSO":
+							completion = "Nonpilot";
+							break;
+
+						case "AIR FIELD":
+							completion = "Airfield";
+							break;
+
+						case "VTOL":
+							completion = "Vertical";
+							break;
+
+						case "N/A":
+						case "REDFOR":
+						case null:
+							completion = "NA";
+							break;
+
+						default:
+							console.log(`Unknown bolter type: ${member.bolters}`);
+					}
+					bolters = null;
+				}
+
+				if (typeof member.wire != "number" && completion == "Arrested") {
+					switch (member.wire) {
+						case "DNF":
+							completion = "DNF";
+							break;
+						case "VTOL":
+						case "VERT":
+							completion = "Vertical";
+							break;
+
+						case "LSO":
+							completion = "Nonpilot";
+							break;
+
+						case "N/A":
+						case null:
+							completion = "NA";
+							break;
+
+						default:
+							console.log(`Unknown wire type: ${member.wire}`);
+					}
+
+					member.wire = null;
+				}
+
+				if (typeof member.combatDeaths != "number" && completion != "Nonpilot" && completion != "DNF") {
+					switch (member.combatDeaths) {
+						// console.log(member, op.name);
+						case "Gunner":
+						case "EWO":
+						case "WIZARD":
+						case "CPG":
+						case "WSO":
+							completion = "Nonpilot";
+							break;
+
+						case "REDFOR":
+						case "N/A":
+							completion = "NA";
+							break;
+
+						case undefined:
+							opIsInvalid = true;
+							break;
+
+						default:
+							member.combatDeaths = 0;
+						// console.log(`Unknown combat deaths: ${member.combatDeaths}`);
+						// console.log(member);
+						// console.log(op.name);
+					}
+
+					if (typeof member.combatDeaths != "number") member.combatDeaths = null;
+				}
+
+				if (opIsInvalid || !memberValid) return null;
+
+				if (completion != "Arrested") {
+					bolters = null;
+					member.wire = null;
+				}
+
+				if (typeof member.combatDeaths != "number") member.combatDeaths = null;
+
+				const isNormCallsign = member.callsign.match(/^\w\d\d$/);
+				if (!isNormCallsign) {
+					member.callsign = null;
+				}
+
+				const acMap = {
+					"AV-42": "AV-42C",
+					"AV-42C": "AV-42C",
+					"F/A-26B": "F/A-26B",
+					"F-45A": "F-45A",
+					"AH-94": "AH-94",
+					"T-55": "T-55",
+					"EF-24G": "EF-24G",
+					"WSO": "T-55",
+					"Gunner": "AH-94",
+					"F-14A+": "F/A-26B",
+					"F-117N": "F-45A",
+					"F/A-18C": "T-55",
+					"F/A-18D": "T-55",
+					"AH-1W": "AH-94",
+					"F/A-26J": "F/A-26B"
+				};
+
+				if (member.type != null) {
+					const ac = acMap[member.type];
+					if (member.type in acMap) {
+						member.type = ac;
+					}
+				}
+
+				const dbMember: DBOpMember = {
+					name: member.displayName,
+					slot: formatAndValidateSlot(member.callsign),
+					aircraft: member.type,
+					type: completion,
+					combatDeaths: member.combatDeaths,
+					bolters: bolters as number,
+					wire: member.wire as number,
+					promotions: member.promotions,
+					remarks: member.remarks
+				};
+
+				return dbMember;
+			})
+			.filter(m => m != null);
+
+		if (opIsInvalid) return;
+
+		const dayTimeTimeslotMap = {
+			SATURDAY1400EST: "Saturday 1400 EST",
+			SATURDAY1600EST: "Saturday 1600 EST",
+			SUNDAY1400EST: "Sunday 1400 EST",
+			SUNDAY1600EST: "Sunday 1600 EST",
+			MONDAY1200EST: "Monday 1200 EST",
+			FRIDAY2000EST: "Friday 2000 EST"
+		};
+		let timeKey = day + time;
+		if (!(timeKey in dayTimeTimeslotMap)) {
+			timeKey = day;
+		}
+
+		if (!(timeKey in dayTimeTimeslotMap)) {
+			console.log(`Invalid timeslot: ${timeKey}`);
+			return;
+		}
+
+		const timeslot = dayTimeTimeslotMap[timeKey];
+		const dbOp: DBOp = {
+			id: uuidv4(),
+			members: dbOpMembers,
+			name: pureName,
+			timeslot: timeslot
+		};
+
+		const opUsersToAdd: OpUser[] = [];
+		dbOp.members.forEach(member => {
+			const existingUser = opUsersToAdd.find(u => u.username == member.name);
+			if (!existingUser) {
+				opUsersToAdd.push({ id: uuidv4(), username: member.name, discordId: null });
+			}
+		});
+
 		await Promise.all(
 			opUsersToAdd.map(async u => {
 				const existing = await this.users.collection.findOne({ username: u.username });
@@ -446,12 +461,65 @@ class Application {
 			})
 		);
 
-		await Promise.all(
-			dbOps.map(async op => {
-				const existing = await this.ops.collection.findOne({ name: op.name, timeslot: op.timeslot });
-				if (!existing) await this.ops.add(op);
-			})
-		);
+		const existing = await this.ops.collection.findOne({ name: dbOp.name, timeslot: dbOp.timeslot });
+		if (!existing) await this.ops.add(dbOp);
+	}
+
+	public async importOp(sheetName: string): Promise<string> {
+		const jwt = this.loadCreds();
+		const doc = new GoogleSpreadsheet(process.env.INGEST_SHEET_ID, jwt);
+		await doc.loadInfo();
+		this.log.info(`Loaded document: ${doc.title}`);
+
+		const targetSheet = doc.sheetsByIndex.find(s => s.title.toLowerCase() == sheetName.toLowerCase());
+		if (!targetSheet) return `Sheet \`${sheetName}\` was not found`;
+
+		await targetSheet.loadCells();
+
+		const opName = targetSheet.getCell(0, 0).value as string;
+		const oOps: OldOp[] = [];
+		for (let startCell = 1; startCell < 115; startCell += 19) {
+			const timeslot = targetSheet.getCell(startCell, 0).value as string;
+			const oldOpEntry: OldOp = {
+				name: opName,
+				timeslot: timeslot,
+				members: []
+			};
+
+			for (let i = 0; i < 16; i++) {
+				const name = targetSheet.getCell(startCell + 2 + i, 0).value as string;
+				const callsign = targetSheet.getCell(startCell + 2 + i, 1).value as string;
+				const type = targetSheet.getCell(startCell + 2 + i, 2).value as string;
+				const bolters = targetSheet.getCell(startCell + 2 + i, 3).value as string | number;
+				const wire = targetSheet.getCell(startCell + 2 + i, 4).value as string | number;
+				const lsoGrade = targetSheet.getCell(startCell + 2 + i, 6).value as string;
+				const combatDeaths = targetSheet.getCell(startCell + 2 + i, 7).value as number;
+				const promotions = targetSheet.getCell(startCell + 2 + i, 8).value as string;
+				const remarks = targetSheet.getCell(startCell + 2 + i, 9).value as string;
+
+				if (!name) continue;
+				oldOpEntry.members.push({
+					displayName: name,
+					uniqueName: name,
+					callsign: callsign,
+					type: type,
+					bolters: bolters,
+					wire: wire,
+					lsoGrade: lsoGrade,
+					combatDeaths: combatDeaths,
+					promotions: promotions,
+					remarks: remarks
+				});
+			}
+
+			if (oldOpEntry.members.length > 0) oOps.push(oldOpEntry);
+		}
+
+		for (const op of oOps) {
+			await this.loadOldOp(op);
+		}
+
+		return null;
 	}
 
 	public async getConfig() {
