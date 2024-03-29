@@ -500,7 +500,8 @@ class Application {
         opsAttended.forEach(op => {
             const member = op.members.find(m => m.name == memberName);
             if (member.combatDeaths !== null) {
-                if (member.combatDeaths == 0 && member.type != "DNF") {
+                const didCompleteOp = member.type == "Airfield" || member.type == "Vertical" || member.type == "Arrested";
+                if (member.combatDeaths == 0 && didCompleteOp) {
                     opsWithoutDeath++;
                     fullOpsWithoutDeath++;
                 }
