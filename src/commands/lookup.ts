@@ -79,8 +79,8 @@ class Lookup extends SlashCommand {
 			const achievementsThisOp = info.awards.filter(a => a.afterOpId == op.id);
 			let achievementLogText: string[] = [];
 			achievementsThisOp.forEach(a => {
-				if (a.type == "fiveOpsWithoutDeath") achievementLogText.push("Safety 'S' Award");
-				if (a.type == "fiveOpsWithoutBolter") achievementLogText.push("Golden Wrench Award");
+				if (a.type == "fiveOpsWithoutBolter") achievementLogText.push("Safety 'S' Award");
+				if (a.type == "fiveOpsWithoutDeath") achievementLogText.push("Golden Wrench Award");
 			});
 			const achievementLog = achievementLogText.length > 0 ? `Achievements: ${achievementLogText.join(", ")}` : "";
 
