@@ -617,6 +617,16 @@ class Application {
                 const cell = writeCell(startRow + 1, i, h);
                 cell.horizontalAlignment = "CENTER";
             });
+            const opMemberDefaultIndexMap = {};
+            op.members.forEach((member, idx) => (opMemberDefaultIndexMap[member.name] = idx));
+            op.members.sort((a, b) => {
+                if (!a.slot || !b.slot) {
+                    const idxA = opMemberDefaultIndexMap[a.name];
+                    const idxB = opMemberDefaultIndexMap[b.name];
+                    return idxA - idxB;
+                }
+                return a.slot.localeCompare(b.slot);
+            });
             op.members.forEach((member, mIdx) => {
                 const row = startRow + 2 + mIdx;
                 writeCell(row, 0, member.name);
