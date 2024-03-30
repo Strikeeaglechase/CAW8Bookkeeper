@@ -85,7 +85,7 @@ class Attend extends SlashCommand {
         // await interaction.reply(framework.success(`Marked as attending the op in slot \`${validSlot}\` as a ${opSlot.aircraft} for ${op.name} ${op.timeslot}`));
         successEmbed.setTitle(opUser.username);
         if (landing == "Arrested") {
-            successEmbed.setDescription(`Attended in \`${validSlot}\` as a \`${opSlot.aircraft}\`, Deaths: **${combatDeaths}**, Bolters: **${bolters}**, Wires: **${wire}**`);
+            successEmbed.setDescription(`Attended in \`${validSlot}\` as a \`${opSlot.aircraft}\`, Deaths: **${combatDeaths}**, Bolters: **${bolters}**, Wire: **${wire}**`);
         }
         else {
             successEmbed.setDescription(`Attended in \`${validSlot}\` as a \`${opSlot.aircraft}\`, Deaths: **${combatDeaths}**. Finished as \`${landing}\``);

@@ -43,7 +43,9 @@ class OpCreate extends SlashCommand {
             id: uuidv4(),
             name: opName,
             timeslot: timeslot,
-            members: []
+            members: [],
+            createdAt: Date.now(),
+            endedAt: null
         };
         app.userSelectedOps[interaction.user.id] = newOp.id;
         await app.ops.add(newOp);

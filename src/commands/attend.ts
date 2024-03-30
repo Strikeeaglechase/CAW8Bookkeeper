@@ -97,7 +97,7 @@ class Attend extends SlashCommand {
 		successEmbed.setTitle(opUser.username);
 		if (landing == "Arrested") {
 			successEmbed.setDescription(
-				`Attended in \`${validSlot}\` as a \`${opSlot.aircraft}\`, Deaths: **${combatDeaths}**, Bolters: **${bolters}**, Wires: **${wire}**`
+				`Attended in \`${validSlot}\` as a \`${opSlot.aircraft}\`, Deaths: **${combatDeaths}**, Bolters: **${bolters}**, Wire: **${wire}**`
 			);
 		} else {
 			successEmbed.setDescription(`Attended in \`${validSlot}\` as a \`${opSlot.aircraft}\`, Deaths: **${combatDeaths}**. Finished as \`${landing}\``);

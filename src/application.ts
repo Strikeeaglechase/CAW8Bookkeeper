@@ -54,6 +54,9 @@ export interface DBOp {
 	name: string;
 	timeslot: string;
 
+	createdAt: number;
+	endedAt: number;
+
 	members: DBOpMember[];
 }
 
@@ -443,7 +446,10 @@ class Application {
 			id: uuidv4(),
 			members: dbOpMembers,
 			name: pureName,
-			timeslot: timeslot
+			timeslot: timeslot,
+
+			createdAt: Date.now(),
+			endedAt: null
 		};
 
 		const opUsersToAdd: OpUser[] = [];
@@ -585,6 +591,20 @@ class Application {
 		const membersGrid: (string | number)[][] = [["Callsign", "Name", "Aircraft", "Bolters", "Wire", "Deaths"]];
 		const remarksPromotions: (string | number)[][] = [["Name", "Promotions", "Remarks"]];
 		const aceIndexes: number[] = [];
+
+		const opMemberDefaultIndexMap: Record<string, number> = {};
+		op.members.forEach((member, idx) => (opMemberDefaultIndexMap[member.name] = idx));
+
+		op.members.sort((a, b) => {
+			if (!a.slot || !b.slot) {
+				const idxA = opMemberDefaultIndexMap[a.name];
+				const idxB = opMemberDefaultIndexMap[b.name];
+				return idxA - idxB;
+			}
+
+			return a.slot.localeCompare(b.slot);
+		});
+
 		op.members.forEach((member, idx) => {
 			const btRtx = member.bolters ?? "Missing Data";
 			const wireRtx = member.wire ?? "Missing Data";
@@ -593,7 +613,7 @@ class Application {
 			const wireText = member.type == "Arrested" ? wireRtx : member.type;
 
 			membersGrid.push([member.slot ?? "???", member.name, member.aircraft ?? "^^^", bolterText, wireText, member.combatDeaths ?? "N/A"]);
-			if (member.promotions || member.remarks) remarksPromotions.push([member.name, member.promotions ?? "-", member.remarks ?? "-"]);
+			if (member.promotions || member.remarks) remarksPromotions.push([member.name, member.promotions ?? "-", member.remarks?.trim() ?? "-"]);
 
 			if (member.bolters == 0 && member.combatDeaths == 0 && member.wire == 3) aceIndexes.push(idx);
 		});

@@ -13,27 +13,27 @@ class OpDisplay extends SlashCommand {
 	public override async run(
 		{ interaction, app, framework }: SlashCommandEvent<Application>,
 		@SArg({ autocomplete: true }) opName: string,
-		@SArg({ choices: opTimeSlots, required: false }) timeslot: string
+		@SArg({ choices: opTimeSlots }) timeslot: string
 	) {
-		if (timeslot) {
-			const op = await app.ops.collection.findOne({ name: opName, timeslot });
-			if (!op) {
-				await interaction.reply(framework.error(`Op ${opName} at ${timeslot} not found`));
-				return;
-			}
-
-			const emb = await app.createOpDisplayEmbed(op);
-			await interaction.reply({ embeds: [emb] });
-		} else {
-			const ops = await app.ops.collection.find({ name: opName }).toArray();
-			if (ops.length == 0) {
-				await interaction.reply(framework.error(`Op ${opName} not found`));
-				return;
-			}
-
-			const embeds = await Promise.all(ops.map(op => app.createOpDisplayEmbed(op)));
-			await interaction.reply({ embeds: embeds });
+		// if (timeslot) {
+		const op = await app.ops.collection.findOne({ name: opName, timeslot });
+		if (!op) {
+			await interaction.reply(framework.error(`Op ${opName} at ${timeslot} not found`));
+			return;
 		}
+
+		const emb = await app.createOpDisplayEmbed(op);
+		await interaction.reply({ embeds: [emb] });
+		// } else {
+		// 	const ops = await app.ops.collection.find({ name: opName }).toArray();
+		// 	if (ops.length == 0) {
+		// 		await interaction.reply(framework.error(`Op ${opName} not found`));
+		// 		return;
+		// 	}
+
+		// 	const embeds = await Promise.all(ops.map(op => app.createOpDisplayEmbed(op)));
+		// 	await interaction.reply({ embeds: embeds });
+		// }
 	}
 
 	public override async handleAutocomplete({ interaction, app }: SlashCommandAutocompleteEvent<Application>) {

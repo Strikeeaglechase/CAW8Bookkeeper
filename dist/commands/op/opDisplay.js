@@ -19,24 +19,23 @@ class OpDisplay extends SlashCommand {
     name = "display";
     description = "Displays an op and its members";
     async run({ interaction, app, framework }, opName, timeslot) {
-        if (timeslot) {
-            const op = await app.ops.collection.findOne({ name: opName, timeslot });
-            if (!op) {
-                await interaction.reply(framework.error(`Op ${opName} at ${timeslot} not found`));
-                return;
-            }
-            const emb = await app.createOpDisplayEmbed(op);
-            await interaction.reply({ embeds: [emb] });
+        // if (timeslot) {
+        const op = await app.ops.collection.findOne({ name: opName, timeslot });
+        if (!op) {
+            await interaction.reply(framework.error(`Op ${opName} at ${timeslot} not found`));
+            return;
         }
-        else {
-            const ops = await app.ops.collection.find({ name: opName }).toArray();
-            if (ops.length == 0) {
-                await interaction.reply(framework.error(`Op ${opName} not found`));
-                return;
-            }
-            const embeds = await Promise.all(ops.map(op => app.createOpDisplayEmbed(op)));
-            await interaction.reply({ embeds: embeds });
-        }
+        const emb = await app.createOpDisplayEmbed(op);
+        await interaction.reply({ embeds: [emb] });
+        // } else {
+        // 	const ops = await app.ops.collection.find({ name: opName }).toArray();
+        // 	if (ops.length == 0) {
+        // 		await interaction.reply(framework.error(`Op ${opName} not found`));
+        // 		return;
+        // 	}
+        // 	const embeds = await Promise.all(ops.map(op => app.createOpDisplayEmbed(op)));
+        // 	await interaction.reply({ embeds: embeds });
+        // }
     }
     async handleAutocomplete({ interaction, app }) {
         const focusedValue = interaction.options.getFocused(true);
@@ -50,7 +49,7 @@ class OpDisplay extends SlashCommand {
 }
 __decorate([
     __param(1, SArg({ autocomplete: true })),
-    __param(2, SArg({ choices: opTimeSlots, required: false })),
+    __param(2, SArg({ choices: opTimeSlots })),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [SlashCommandEvent, String, String]),
     __metadata("design:returntype", Promise)
