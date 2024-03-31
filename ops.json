@@ -21800,7 +21800,7 @@
     "name": "OP: DIVINE WIND SUNDAY 1600EST 04FEB2024"
   },
   {
-    "timeslot": "MONDAY1200EST 05FEB2024",
+    "timeslot": "MONDAY 1200EST 05FEB2024",
     "config": {
       "countBolters": true,
       "countDeaths": true
@@ -21976,7 +21976,7 @@
         "displayName": "Hrac"
       }
     ],
-    "name": "OP: DIVINE WIND MONDAY1200EST 05FEB2024"
+    "name": "OP: DIVINE WIND MONDAY 1200EST 05FEB2024"
   },
   {
     "timeslot": "FRIDAY 2000EST 09FEB2024",
@@ -22982,7 +22982,7 @@
     "name": "OP: HONEY POT SUNDAY 1600EST 11FEB2024"
   },
   {
-    "timeslot": "MONDAY1200EST 12FEB2024",
+    "timeslot": "MONDAY 1200EST 12FEB2024",
     "config": {
       "countBolters": true,
       "countDeaths": true
@@ -23170,7 +23170,7 @@
         "displayName": "Nevan Nedall"
       }
     ],
-    "name": "OP: HONEY POT MONDAY1200EST 12FEB2024"
+    "name": "OP: HONEY POT MONDAY 1200EST 12FEB2024"
   },
   {
     "timeslot": "FRIDAY 2000EST 16FEB2024",
@@ -24188,7 +24188,7 @@
     "name": "OP: FROSTBITE SUNDAY 1600EST 18FEB2024"
   },
   {
-    "timeslot": "MONDAY1200EST 19FEB2024",
+    "timeslot": "MONDAY 1200EST 19FEB2024",
     "config": {
       "countBolters": true,
       "countDeaths": true
@@ -24388,7 +24388,7 @@
         "displayName": "quickerFlix"
       }
     ],
-    "name": "OP: FROSTBITE MONDAY1200EST 19FEB2024"
+    "name": "OP: FROSTBITE MONDAY 1200EST 19FEB2024"
   },
   {
     "timeslot": "FRIDAY 2000EST 23FEB2024",
@@ -25394,7 +25394,7 @@
     "name": "OP: ARTIC ANGLER SUNDAY 1600EST 25FEB2024"
   },
   {
-    "timeslot": "MONDAY1200EST 26FEB2024",
+    "timeslot": "MONDAY 1200EST 26FEB2024",
     "config": {
       "countBolters": true,
       "countDeaths": true
@@ -25570,7 +25570,7 @@
         "displayName": "Xake"
       }
     ],
-    "name": "OP: ARTIC ANGLER MONDAY1200EST 26FEB2024"
+    "name": "OP: ARTIC ANGLER MONDAY 1200EST 26FEB2024"
   },
   {
     "timeslot": "FRIDAY 2000EST 01MAR2024",
@@ -26588,7 +26588,7 @@
     "name": "OP: HAPPY HOUR RERUN SUNDAY 1600EST 04MAR2024"
   },
   {
-    "timeslot": "MONDAY1200EST 05MAR2024",
+    "timeslot": "MONDAY 1200EST 05MAR2024",
     "config": {
       "countBolters": true,
       "countDeaths": true
@@ -26752,7 +26752,7 @@
         "displayName": "Quickerflix"
       }
     ],
-    "name": "OP: HAPPY HOUR RERUN MONDAY1200EST 05MAR2024"
+    "name": "OP: HAPPY HOUR RERUN MONDAY 1200EST 05MAR2024"
   },
   {
     "timeslot": "FRIDAY 2000EST 08MAR2024",
@@ -26986,14 +26986,14 @@
     "name": "Sheet15 SUNDAY 1600EST 10MAR2024"
   },
   {
-    "timeslot": "MONDAY1200EST 11MAR2024",
+    "timeslot": "MONDAY 1200EST 11MAR2024",
     "config": {
       "countBolters": true,
       "countDeaths": true
     },
     "startRow": 78,
     "members": [],
-    "name": "Sheet15 MONDAY1200EST 11MAR2024"
+    "name": "Sheet15 MONDAY 1200EST 11MAR2024"
   },
   {
     "timeslot": "FRIDAY 2000EST 15MAR2024",

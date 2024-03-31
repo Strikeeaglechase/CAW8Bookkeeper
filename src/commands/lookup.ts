@@ -1,5 +1,4 @@
 import { AttachmentBuilder, EmbedBuilder } from "discord.js";
-import fs from "fs";
 import { SlashCommand, SlashCommandAutocompleteEvent, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 
@@ -7,6 +6,7 @@ import { Application, OpUser, wireScore } from "../application.js";
 
 const qualifyRanks: { rank: string; uOps: number; tOps: number }[] = [
 	{ rank: "Recruit", uOps: 0, tOps: 0 },
+	{ rank: "Ensign", uOps: 1, tOps: 1 },
 	{ rank: "Lieutenant Junior Grade", uOps: 2, tOps: 3 },
 	{ rank: "Lieutenant", uOps: 3, tOps: 6 },
 	{ rank: "Lieutenant Commander", uOps: 5, tOps: 8 },
@@ -122,12 +122,12 @@ class Lookup extends SlashCommand {
 			},
 			{
 				name: `Ops without death`,
-				value: info.fullOpsWithoutDeath.toString(),
+				value: `Current streak: \`${info.fullOpsWithoutDeath}\`\nTotal: \`${info.overallTotalOpsWithoutDeath}\``,
 				inline: true
 			},
 			{
 				name: `Ops without bolter`,
-				value: info.fullOpsWithoutBolter.toString(),
+				value: `Current streak: \`${info.fullOpsWithoutBolter}\`\nTotal: \`${info.overallTotalOpsWithoutBolter}\``,
 				inline: true
 			},
 			{

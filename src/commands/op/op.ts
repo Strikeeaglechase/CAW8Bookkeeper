@@ -4,6 +4,7 @@ import { Application } from "../../application.js";
 import OpCreate from "./opCreate.js";
 import OpDisplay from "./opDisplay.js";
 import OpEnable from "./opEnable.js";
+import OpEnd from "./opEnd.js";
 import OpSet from "./opSet.js";
 import OpSetSlot from "./opSetSlot.js";
 import OpUpload from "./opUpload.js";
@@ -27,7 +28,7 @@ class Op extends SlashCommandParent {
 	description = "Op related commands";
 
 	getSubCommands(): Constructor<SlashCommand>[] {
-		return [OpCreate, OpDisplay, OpSet, OpSetSlot, OpEnable, OpUpload];
+		return [OpCreate, OpDisplay, OpSet, OpSetSlot, OpEnable, OpUpload, OpEnd];
 	}
 }
 

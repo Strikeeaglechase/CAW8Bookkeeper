@@ -82,6 +82,7 @@ class Application {
     configDb;
     userSelectedOps = {};
     activeOp;
+    // private handledNicknameUpdates: string[] = [];
     constructor(framework) {
         this.framework = framework;
         this.log = framework.log;
@@ -93,6 +94,7 @@ class Application {
         this.users = await this.framework.database.collection("users", false, "id");
         this.configDb = await this.framework.database.collection("config", false, "id");
         this.framework.client.on("guildMemberUpdate", async (oldMember, newMember) => {
+            this.log.info(`Nickname change: ${oldMember.nickname} -> ${newMember.nickname}`);
             if (oldMember.nickname != newMember.nickname) {
                 const channelId = (await this.getConfig()).nicknameNotifyChannel;
                 if (!channelId)
@@ -102,19 +104,51 @@ class Application {
                     return;
                 const embed = new EmbedBuilder();
                 embed.setTitle(newMember.user.username);
-                embed.setDescription(`Nickname change \`${oldMember.nickname}\` -> \`${newMember.nickname}\``);
+                embed.setDescription(`Nickname change \`${oldMember.displayName}\` -> \`${newMember.displayName}\``);
                 channel.send({ embeds: [embed] });
+                // const nicknameKey = `${oldMember.id}-${oldMember.nickname}-${newMember.nickname}`;
+                // this.handledNicknameUpdates.push(nicknameKey);
             }
         });
+        // this.framework.client.on("guildAuditLogEntryCreate", async entry => {
+        // 	console.log(entry.actionType, entry.action);
+        // 	if (entry.action != AuditLogEvent.MemberUpdate) return;
+        // 	const target = entry.target as GuildMember;
+        // 	if (!target) return;
+        // 	const x = entry.action;
+        // 	console.log(x);
+        // 	// entry.
+        // });
         const ops = await this.ops.collection.find({}).toArray();
-        ops.forEach(op => {
-            op.members.forEach(async (member) => {
-                const newSlot = formatAndValidateSlot(member.slot);
-                if (newSlot != member.slot) {
-                    console.log(`Updating slot ${member.slot} -> ${newSlot}`);
-                    await this.ops.collection.updateOne({ id: op.id }, { $set: { "members.$[elm].slot": newSlot } }, { arrayFilters: [{ "elm.name": member.name }] });
-                }
-            });
+        const oOps = JSON.parse(fs.readFileSync("../ops.json", "utf8"));
+        const dayTimeTimeslotMap = {
+            SATURDAY1400EST: "Saturday 1400 EST",
+            SATURDAY1600EST: "Saturday 1600 EST",
+            SUNDAY1400EST: "Sunday 1400 EST",
+            SUNDAY1600EST: "Sunday 1600 EST",
+            MONDAY1200EST: "Monday 1200 EST",
+            FRIDAY2000EST: "Friday 2000 EST"
+        };
+        ops.forEach(async (newOp) => {
+            if (!newOp.createdAt) {
+                const oOpEntry = oOps.find(op => {
+                    const match = op.timeslot.match(/(\w+) ([\w\d]+)/);
+                    const [_, day, time] = [...match];
+                    const key = day + time;
+                    const slot = dayTimeTimeslotMap[key];
+                    return op.name.includes(newOp.name) && newOp.timeslot == slot;
+                });
+                if (!oOpEntry)
+                    return;
+                const match = oOpEntry.timeslot.match(/(\w+) ([\w\d]+)/);
+                const [_, day, time] = [...match];
+                const date = oOpEntry.name.match(/EST,? (.+)/)[1];
+                const dateTime = new Date(`${date} ${time}`);
+                // newOp.createdAt = dateTime.getTime();
+                // newOp.endedAt = dateTime.getTime();
+                await this.ops.collection.updateOne({ id: newOp.id }, { $set: { createdAt: dateTime.getTime(), endedAt: dateTime.getTime() } });
+                // console.log(`Op ${newOp.name} has no createdAt, oOp: ${oOpEntry}`);
+            }
         });
         // const oldOps = JSON.parse(fs.readFileSync("../ops.json", "utf8")) as OldOp[];
         // const opUsersToAdd: OpUser[] = [];
@@ -509,6 +543,9 @@ class Application {
         let opsWithoutBolter = 0;
         let fullOpsWithoutDeath = 0;
         let fullOpsWithoutBolter = 0;
+        let overallTotalOpsWithoutDeath = 0;
+        let overallTotalOpsWithoutBolter = 0;
+        opsAttended.sort((a, b) => a.createdAt - b.createdAt);
         opsAttended.forEach(op => {
             const member = op.members.find(m => m.name == memberName);
             if (member.combatDeaths !== null) {
@@ -516,6 +553,7 @@ class Application {
                 if (member.combatDeaths == 0 && didCompleteOp) {
                     opsWithoutDeath++;
                     fullOpsWithoutDeath++;
+                    overallTotalOpsWithoutDeath++;
                 }
                 else if (member.combatDeaths > 0) {
                     opsWithoutDeath = 0;
@@ -527,6 +565,7 @@ class Application {
                     if (member.bolters == 0) {
                         opsWithoutBolter++;
                         fullOpsWithoutBolter++;
+                        overallTotalOpsWithoutBolter++;
                     }
                     else {
                         opsWithoutBolter = 0;
@@ -543,7 +582,7 @@ class Application {
                 opsWithoutBolter = 0;
             }
         });
-        return { awards, memberName, fullOpsWithoutDeath, fullOpsWithoutBolter, opsAttended };
+        return { awards, memberName, fullOpsWithoutDeath, fullOpsWithoutBolter, overallTotalOpsWithoutBolter, overallTotalOpsWithoutDeath, opsAttended };
     }
     loadCreds() {
         const creds = JSON.parse(fs.readFileSync("../caw8-creds.json", "utf8"));

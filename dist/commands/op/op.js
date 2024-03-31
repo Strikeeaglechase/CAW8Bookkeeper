@@ -2,6 +2,7 @@ import { SlashCommandParent } from "strike-discord-framework/dist/slashCommand.j
 import OpCreate from "./opCreate.js";
 import OpDisplay from "./opDisplay.js";
 import OpEnable from "./opEnable.js";
+import OpEnd from "./opEnd.js";
 import OpSet from "./opSet.js";
 import OpSetSlot from "./opSetSlot.js";
 import OpUpload from "./opUpload.js";
@@ -20,7 +21,7 @@ class Op extends SlashCommandParent {
     name = "op";
     description = "Op related commands";
     getSubCommands() {
-        return [OpCreate, OpDisplay, OpSet, OpSetSlot, OpEnable, OpUpload];
+        return [OpCreate, OpDisplay, OpSet, OpSetSlot, OpEnable, OpUpload, OpEnd];
     }
 }
 export default Op;

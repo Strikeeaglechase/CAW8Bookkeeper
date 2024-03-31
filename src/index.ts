@@ -1,5 +1,6 @@
 import "reflect-metadata";
 
+import { IntentsBitField, Partials } from "discord.js";
 import { config as dotenvConfig } from "dotenv";
 import FrameworkClient from "strike-discord-framework";
 import { FrameworkClientOptions } from "strike-discord-framework/dist/interfaces";
@@ -7,7 +8,7 @@ import { FrameworkClientOptions } from "strike-discord-framework/dist/interfaces
 import { Application } from "./application.js";
 
 dotenvConfig();
-
+const f = IntentsBitField.Flags;
 const frameworkOptions: FrameworkClientOptions = {
 	commandsPath: `${process.cwd()}/commands/`,
 	databaseOpts: {
@@ -27,10 +28,14 @@ const frameworkOptions: FrameworkClientOptions = {
 	name: "CAW8 Bookkeeper",
 	token: process.env.TOKEN,
 	ownerID: "272143648114606083",
-	slashCommandDevServer: "836755485935271966",
+	slashCommandDevServer: process.env.IS_DEV ? "1222394236624965643" : "836755485935271966",
 	dmPrefixOnPing: true,
 	dmErrorSilently: false,
-	permErrorSilently: false
+	permErrorSilently: false,
+	clientOptions: {
+		partials: [Partials.Channel, Partials.GuildMember],
+		intents: f.Guilds | f.GuildMembers | f.GuildModeration
+	}
 };
 
 const frameClient = new FrameworkClient(frameworkOptions);
