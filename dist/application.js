@@ -494,7 +494,7 @@ class Application {
                 return idxA - idxB;
             }
             if (a.slot == b.slot) {
-                return a.type == "Nonpilot" ? -1 : 1;
+                return a.type == "Nonpilot" ? 1 : -1;
             }
             return a.slot.localeCompare(b.slot);
         });
