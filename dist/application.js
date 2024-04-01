@@ -80,6 +80,7 @@ class Application {
     users;
     slots;
     configDb;
+    userNicknames;
     userSelectedOps = {};
     activeOp;
     // private handledNicknameUpdates: string[] = [];
@@ -93,9 +94,25 @@ class Application {
         this.slots = await this.framework.database.collection("slots", false, "id");
         this.users = await this.framework.database.collection("users", false, "id");
         this.configDb = await this.framework.database.collection("config", false, "id");
+        this.userNicknames = await this.framework.database.collection("userNicknames", false, "id");
+        const serverId = process.env.IS_DEV == "true" ? "1222394236624965643" : "836755485935271966";
+        const server = await this.framework.client.guilds.fetch(serverId);
+        const members = await server.members.fetch();
+        members.forEach(async (member) => {
+            const nickname = member.nickname;
+            const entry = await this.userNicknames.collection.findOne({ id: member.id });
+            if (!entry) {
+                await this.userNicknames.collection.insertOne({ id: member.id, nickname: nickname });
+            }
+            else if (entry.nickname != nickname) {
+                await this.userNicknames.collection.updateOne({ id: member.id }, { $set: { nickname: nickname } });
+            }
+        });
         this.framework.client.on("guildMemberUpdate", async (oldMember, newMember) => {
-            this.log.info(`Nickname change: ${oldMember.nickname} -> ${newMember.nickname}`);
             if (oldMember.nickname != newMember.nickname) {
+                const previousNickname = (await this.userNicknames.collection.findOne({ id: newMember.id }))?.nickname;
+                if (previousNickname == newMember.nickname)
+                    return;
                 const channelId = (await this.getConfig()).nicknameNotifyChannel;
                 if (!channelId)
                     return;
@@ -106,6 +123,7 @@ class Application {
                 embed.setTitle(newMember.user.username);
                 embed.setDescription(`Nickname change \`${oldMember.displayName}\` -> \`${newMember.displayName}\``);
                 channel.send({ embeds: [embed] });
+                await this.userNicknames.collection.updateOne({ id: newMember.id }, { $set: { nickname: newMember.nickname } });
                 // const nicknameKey = `${oldMember.id}-${oldMember.nickname}-${newMember.nickname}`;
                 // this.handledNicknameUpdates.push(nicknameKey);
             }
