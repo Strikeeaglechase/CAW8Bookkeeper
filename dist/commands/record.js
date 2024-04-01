@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 import { SlashCommand, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
-import { replyOrEdit } from "../application.js";
+import { formatAndValidateSlot, replyOrEdit } from "../application.js";
 import { interactionConfirm } from "../iterConfirm.js";
 export const aircraft = [
     { name: "AV-42C", value: "AV-42C" },
@@ -72,8 +72,13 @@ class Record extends SlashCommand {
                 return;
             }
         }
+        const validSlot = formatAndValidateSlot(slot);
+        if (!validSlot) {
+            await interaction.reply(framework.error(`Invalid slot format "\`${slot}\`", must be in the format "A1-2" (also valid: A12, A2)`, true));
+            return;
+        }
         const record = {
-            slot: slot,
+            slot: validSlot,
             name: name,
             aircraft: aircraft,
             type: completion,

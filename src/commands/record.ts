@@ -2,7 +2,7 @@ import { SlashCommand, SlashCommandAutocompleteEvent, SlashCommandEvent } from "
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 import confirm from "strike-discord-framework/dist/util/reactConfirm.js";
 
-import { Application, CompletionType, DBOpMember, OpUser, replyOrEdit } from "../application.js";
+import { Application, CompletionType, DBOpMember, formatAndValidateSlot, OpUser, replyOrEdit } from "../application.js";
 import { interactionConfirm } from "../iterConfirm.js";
 
 export const aircraft = [
@@ -82,8 +82,14 @@ class Record extends SlashCommand {
 			}
 		}
 
+		const validSlot = formatAndValidateSlot(slot);
+		if (!validSlot) {
+			await interaction.reply(framework.error(`Invalid slot format "\`${slot}\`", must be in the format "A1-2" (also valid: A12, A2)`, true));
+			return;
+		}
+
 		const record: DBOpMember = {
-			slot: slot,
+			slot: validSlot,
 			name: name,
 			aircraft: aircraft,
 			type: completion as CompletionType,
