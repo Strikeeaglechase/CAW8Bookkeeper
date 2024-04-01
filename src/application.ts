@@ -7,6 +7,7 @@ import { CollectionManager } from "strike-discord-framework/dist/collectionManag
 import Logger from "strike-discord-framework/dist/logger.js";
 import { v4 as uuidv4 } from "uuid";
 
+import Op from "./commands/op/op.js";
 import { SheetParseResult } from "./parseSheets.js";
 
 export const timeslots = [
@@ -620,13 +621,7 @@ class Application {
 		return data.map(row => row.map((val, i) => String(val).padEnd(widths[i]).substring(0, tEntryMaxLen)).join(" "));
 	}
 
-	public async createOpDisplayEmbed(op: DBOp) {
-		const embed = new EmbedBuilder();
-		embed.setTitle(`${op.name} | ${op.timeslot}`);
-		const membersGrid: (string | number)[][] = [["Callsign", "Name", "Aircraft", "Bolters", "Wire", "Deaths"]];
-		const remarksPromotions: (string | number)[][] = [["Name", "Promotions", "Remarks"]];
-		const aceIndexes: number[] = [];
-
+	public sortOpMembers(op: DBOp) {
 		const opMemberDefaultIndexMap: Record<string, number> = {};
 		op.members.forEach((member, idx) => (opMemberDefaultIndexMap[member.name] = idx));
 
@@ -637,8 +632,22 @@ class Application {
 				return idxA - idxB;
 			}
 
+			if (a.slot == b.slot) {
+				return a.type == "Nonpilot" ? -1 : 1;
+			}
+
 			return a.slot.localeCompare(b.slot);
 		});
+	}
+
+	public async createOpDisplayEmbed(op: DBOp) {
+		const embed = new EmbedBuilder();
+		embed.setTitle(`${op.name} | ${op.timeslot}`);
+		const membersGrid: (string | number)[][] = [["Callsign", "Name", "Aircraft", "Bolters", "Wire", "Deaths"]];
+		const remarksPromotions: (string | number)[][] = [["Name", "Promotions", "Remarks"]];
+		const aceIndexes: number[] = [];
+
+		this.sortOpMembers(op);
 
 		op.members.forEach((member, idx) => {
 			const btRtx = member.bolters ?? "Missing Data";
@@ -822,18 +831,7 @@ class Application {
 				cell.horizontalAlignment = "CENTER";
 			});
 
-			const opMemberDefaultIndexMap: Record<string, number> = {};
-			op.members.forEach((member, idx) => (opMemberDefaultIndexMap[member.name] = idx));
-
-			op.members.sort((a, b) => {
-				if (!a.slot || !b.slot) {
-					const idxA = opMemberDefaultIndexMap[a.name];
-					const idxB = opMemberDefaultIndexMap[b.name];
-					return idxA - idxB;
-				}
-
-				return a.slot.localeCompare(b.slot);
-			});
+			this.sortOpMembers(op);
 
 			op.members.forEach((member, mIdx) => {
 				const row = startRow + 2 + mIdx;

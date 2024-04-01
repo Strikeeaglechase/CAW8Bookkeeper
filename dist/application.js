@@ -484,12 +484,7 @@ class Application {
         const widths = data[0].map((_, i) => Math.max(...data.map(row => String(row[i]).length)));
         return data.map(row => row.map((val, i) => String(val).padEnd(widths[i]).substring(0, tEntryMaxLen)).join(" "));
     }
-    async createOpDisplayEmbed(op) {
-        const embed = new EmbedBuilder();
-        embed.setTitle(`${op.name} | ${op.timeslot}`);
-        const membersGrid = [["Callsign", "Name", "Aircraft", "Bolters", "Wire", "Deaths"]];
-        const remarksPromotions = [["Name", "Promotions", "Remarks"]];
-        const aceIndexes = [];
+    sortOpMembers(op) {
         const opMemberDefaultIndexMap = {};
         op.members.forEach((member, idx) => (opMemberDefaultIndexMap[member.name] = idx));
         op.members.sort((a, b) => {
@@ -498,8 +493,19 @@ class Application {
                 const idxB = opMemberDefaultIndexMap[b.name];
                 return idxA - idxB;
             }
+            if (a.slot == b.slot) {
+                return a.type == "Nonpilot" ? -1 : 1;
+            }
             return a.slot.localeCompare(b.slot);
         });
+    }
+    async createOpDisplayEmbed(op) {
+        const embed = new EmbedBuilder();
+        embed.setTitle(`${op.name} | ${op.timeslot}`);
+        const membersGrid = [["Callsign", "Name", "Aircraft", "Bolters", "Wire", "Deaths"]];
+        const remarksPromotions = [["Name", "Promotions", "Remarks"]];
+        const aceIndexes = [];
+        this.sortOpMembers(op);
         op.members.forEach((member, idx) => {
             const btRtx = member.bolters ?? "Missing Data";
             const wireRtx = member.wire ?? "Missing Data";
@@ -656,16 +662,7 @@ class Application {
                 const cell = writeCell(startRow + 1, i, h);
                 cell.horizontalAlignment = "CENTER";
             });
-            const opMemberDefaultIndexMap = {};
-            op.members.forEach((member, idx) => (opMemberDefaultIndexMap[member.name] = idx));
-            op.members.sort((a, b) => {
-                if (!a.slot || !b.slot) {
-                    const idxA = opMemberDefaultIndexMap[a.name];
-                    const idxB = opMemberDefaultIndexMap[b.name];
-                    return idxA - idxB;
-                }
-                return a.slot.localeCompare(b.slot);
-            });
+            this.sortOpMembers(op);
             op.members.forEach((member, mIdx) => {
                 const row = startRow + 2 + mIdx;
                 writeCell(row, 0, member.name);
