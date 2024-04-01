@@ -194,9 +194,14 @@ class Application {
 		});
 
 		this.framework.client.on("guildMemberUpdate", async (oldMember, newMember) => {
+			let prevNicknameEntry: UserNicknameEntry = await this.userNicknames.collection.findOne({ id: newMember.id });
+			if (!prevNicknameEntry) {
+				await this.userNicknames.collection.insertOne({ id: newMember.id, nickname: newMember.nickname });
+				prevNicknameEntry = { id: newMember.id, nickname: newMember.nickname };
+			}
+
 			if (oldMember.nickname != newMember.nickname) {
-				const previousNickname = (await this.userNicknames.collection.findOne({ id: newMember.id }))?.nickname;
-				if (previousNickname == newMember.nickname) return;
+				if (prevNicknameEntry.id == newMember.nickname) return;
 
 				const channelId = (await this.getConfig()).nicknameNotifyChannel;
 				if (!channelId) return;
@@ -209,21 +214,8 @@ class Application {
 				channel.send({ embeds: [embed] });
 
 				await this.userNicknames.collection.updateOne({ id: newMember.id }, { $set: { nickname: newMember.nickname } });
-
-				// const nicknameKey = `${oldMember.id}-${oldMember.nickname}-${newMember.nickname}`;
-				// this.handledNicknameUpdates.push(nicknameKey);
 			}
 		});
-
-		// this.framework.client.on("guildAuditLogEntryCreate", async entry => {
-		// 	console.log(entry.actionType, entry.action);
-		// 	if (entry.action != AuditLogEvent.MemberUpdate) return;
-		// 	const target = entry.target as GuildMember;
-		// 	if (!target) return;
-		// 	const x = entry.action;
-		// 	console.log(x);
-		// 	// entry.
-		// });
 
 		const ops = await this.ops.collection.find({}).toArray();
 		const oOps = JSON.parse(fs.readFileSync("../ops.json", "utf8")) as OldOp[];
