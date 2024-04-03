@@ -7,7 +7,6 @@ import { CollectionManager } from "strike-discord-framework/dist/collectionManag
 import Logger from "strike-discord-framework/dist/logger.js";
 import { v4 as uuidv4 } from "uuid";
 
-import Op from "./commands/op/op.js";
 import { SheetParseResult } from "./parseSheets.js";
 
 export const timeslots = [
