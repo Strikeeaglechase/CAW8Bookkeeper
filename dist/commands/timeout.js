@@ -14,13 +14,15 @@ import { User } from "discord.js";
 import { SlashCommand, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 const timeoutChoices = [
-    { name: "15 seconds", value: 15 },
-    { name: "1 minute", value: 60 },
-    { name: "30 minutes", value: 30 * 60 },
-    { name: "1 hour", value: 60 * 60 },
-    { name: "1 day", value: 24 * 60 * 60 },
-    { name: "1 week", value: 7 * 24 * 60 * 60 },
-    { name: "1 month", value: 30 * 24 * 60 * 60 }
+    { name: "15 seconds", value: 15 * 1000 },
+    { name: "1 minute", value: 60 * 1000 },
+    { name: "30 minutes", value: 30 * 60 * 1000 },
+    { name: "1 hour", value: 60 * 60 * 1000 },
+    { name: "1 day", value: 24 * 60 * 60 * 1000 },
+    { name: "1 week", value: 7 * 24 * 60 * 60 * 1000 },
+    { name: "1 month", value: 30 * 24 * 60 * 60 * 1000 },
+    { name: "1 year", value: 365 * 24 * 60 * 60 * 1000 },
+    { name: "100 years", value: 100 * 365 * 24 * 60 * 60 * 1000 }
 ];
 class Timeout extends SlashCommand {
     name = "timeout";
@@ -42,7 +44,8 @@ class Timeout extends SlashCommand {
             return;
         }
         await targetMember.timeout(time);
-        await targetMember.send(`You have been timed out from CAW8 for: ${reason}`);
+        await targetMember.send(`You have been timed out from CAW8 for: ${reason}`).catch(() => { });
+        await interaction.reply(framework.success(`Successfully timed out ${target.tag} for ${time}ms`, true));
     }
 }
 __decorate([
