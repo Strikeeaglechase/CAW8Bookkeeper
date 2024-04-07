@@ -63,7 +63,7 @@ export const wireScore = (wire) => {
         case 1:
             return 0.25;
         case 2:
-            return 0.5;
+            return 0.75;
         case 3:
             return 1;
         case 4:

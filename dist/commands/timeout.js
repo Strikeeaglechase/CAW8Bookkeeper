@@ -19,10 +19,7 @@ const timeoutChoices = [
     { name: "30 minutes", value: 30 * 60 * 1000 },
     { name: "1 hour", value: 60 * 60 * 1000 },
     { name: "1 day", value: 24 * 60 * 60 * 1000 },
-    { name: "1 week", value: 7 * 24 * 60 * 60 * 1000 },
-    { name: "1 month", value: 30 * 24 * 60 * 60 * 1000 },
-    { name: "1 year", value: 365 * 24 * 60 * 60 * 1000 },
-    { name: "100 years", value: 100 * 365 * 24 * 60 * 60 * 1000 }
+    { name: "1 week", value: 7 * 24 * 60 * 60 * 1000 }
 ];
 class Timeout extends SlashCommand {
     name = "timeout";
