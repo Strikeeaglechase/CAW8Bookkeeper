@@ -34,10 +34,6 @@ class Greenie extends SlashCommand {
 
 		const info = await app.calcOpAwards(userEntry.username);
 
-		let opLog = "";
-		let tOps = 0;
-		let uOps = 0;
-		const uOpNames: Set<string> = new Set();
 		let totalWireScore = 0;
 		let totalWireCounts = 0;
 		let greenieBoard: Record<string, string[]> = {};
@@ -76,10 +72,6 @@ class Greenie extends SlashCommand {
 			{ name: "Average Wire Score", value: (totalWireScore / totalWireCounts).toFixed(2), inline: true },
 			{ name: "Wire Guide", value: "4::orange_square: 3::green_square: 2::yellow_square: 1::red_square: Bolter::blue_square:", inline: true }
 		]);
-
-		// const attachment = new (await app.elo.getUserLog(user.id, targetSeason, achievementLogText), "history.txt");
-		// const files = [attachment];
-		const attachment = new AttachmentBuilder(Buffer.from(opLog), { name: "history.txt" });
 
 		//interaction.reply({ embeds: [embed], files: [attachment] });
 
