@@ -2,7 +2,7 @@ import { AttachmentBuilder, EmbedBuilder } from "discord.js";
 import { SlashCommand, SlashCommandAutocompleteEvent, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 
-import { Application, OpUser, wireScore, wireGradeEmoji, wireScoreEmoji } from "../application.js";
+import { Application, OpUser, wireScore } from "../application.js";
 
 const qualifyRanks: { rank: string; uOps: number; tOps: number }[] = [
 	{ rank: "Recruit", uOps: 0, tOps: 0 },
@@ -53,7 +53,6 @@ class Lookup extends SlashCommand {
 		const uOpNames: Set<string> = new Set();
 		let totalWireScore = 0;
 		let totalWireCounts = 0;
-		let greenieBoard = "";
 
 		info.opsAttended.forEach(op => {
 			const member = op.members.find(m => m.name == userEntry.username);
@@ -97,7 +96,6 @@ class Lookup extends SlashCommand {
 
 			if (member.wire) {
 				totalWireScore += wireScore(member.wire);
-				greenieBoard += wireScoreEmoji(member.wire);
 				totalWireCounts++;
 			}
 		});
