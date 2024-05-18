@@ -127,30 +127,30 @@ export const wireScore = (wire: number) => {
 export const wireScoreEmoji = (wire: number) => {
 	switch (wire) {
 		case 1:
-			return ":red_square:";
+			return "🟥";
 		case 2:
-			return ":yellow_square:";
+			return "🟨";
 		case 3:
-			return ":green_square:";
+			return "🟩";
 		case 4:
-			return ":orange_square:";
+			return "🟧";
 		default:
-			return ":question:";
+			return "❓";
 	}
 };
 
 export const wireScoreEmojiAvacado = (wire: number) => {
 	switch (wire) {
 		case 1:
-			return ":sob:";
+			return "😄";
 		case 2:
-			return ":smile:";
+			return "😄";
 		case 3:
 			return "😎";
 		case 4:
 			return "😔";
 		default:
-			return ":question:";
+			return "❓";
 	}
 };
 interface OldOp {

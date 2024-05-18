@@ -50,7 +50,7 @@ class Greenie extends SlashCommand {
 					totalWireCounts[member.aircraft] = 0;
 				}
 
-				greenieBoard[member.aircraft].push(...Array(member.bolters).fill(trollUsers.includes(userEntry.username) ? ":skull:" : ":blue_square:"));
+				greenieBoard[member.aircraft].push(...Array(member.bolters).fill(trollUsers.includes(userEntry.username) ? "💀" : "🟦"));
 				greenieBoard[member.aircraft].push(trollUsers.includes(userEntry.username) ? wireScoreEmojiAvacado(member.wire) : wireScoreEmoji(member.wire));
 				totalWireScores[member.aircraft] += wireScore(member.wire);
 				totalWireCounts[member.aircraft]++;
@@ -86,7 +86,7 @@ class Greenie extends SlashCommand {
 		embed.setFooter({ text: "Brought to you by C-137" });
 		embed.addFields([
 			{ name: "Wire GPA (4 is highest)", value: averagesString, inline: true },
-			{ name: "Wire Guide", value: "4::orange_square: 3::green_square: 2::yellow_square: 1::red_square: Bolter::blue_square:", inline: true }
+			{ name: "Wire Guide", value: "4:🟧 3:🟩 2:🟨 1:🟥 Bolter:🟦", inline: true }
 		]);
 
 		//interaction.reply({ embeds: [embed], files: [attachment] });
