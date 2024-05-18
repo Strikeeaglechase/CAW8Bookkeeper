@@ -1,8 +1,8 @@
-import { AttachmentBuilder, EmbedBuilder } from "discord.js";
+import { EmbedBuilder } from "discord.js";
 import { SlashCommand, SlashCommandAutocompleteEvent, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 
-import { Application, OpUser, wireScore, wireScoreEmoji, wireScoreEmojiAvacado } from "../application.js";
+import { Application, OpUser, wireScore, wireScoreEmoji } from "../application.js";
 
 const aircraft = ["AV-42C", "F/A-26B", "F-45A", "AH-94", "T-55", "EF-24G"];
 const trollUsers = ["Avacado", "Freedom", "Freedomplaza", "Strikeeaglechase"];
@@ -51,7 +51,8 @@ class Greenie extends SlashCommand {
 				}
 
 				greenieBoard[member.aircraft].push(...Array(member.bolters).fill(trollUsers.includes(userEntry.username) ? "💀" : "🟦"));
-				greenieBoard[member.aircraft].push(trollUsers.includes(userEntry.username) ? wireScoreEmojiAvacado(member.wire) : wireScoreEmoji(member.wire));
+				// greenieBoard[member.aircraft].push(trollUsers.includes(userEntry.username) ? wireScoreEmojiAvacado(member.wire) : wireScoreEmoji(member.wire));
+				greenieBoard[member.aircraft].push(wireScoreEmoji(member.wire));
 				totalWireScores[member.aircraft] += wireScore(member.wire);
 				totalWireCounts[member.aircraft]++;
 				totalWireCounts[member.aircraft] += member.bolters;
