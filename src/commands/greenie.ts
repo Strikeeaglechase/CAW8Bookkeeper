@@ -72,7 +72,10 @@ class Greenie extends SlashCommand {
 		embed.setTitle(`Greenie Board for ${userEntry.username}`);
 		embed.setDescription(greenieBoardString);
 		embed.setFooter({ text: "Brought to you by C-137" });
-		embed.addFields([{ name: "Wire Guide", value: "4::orange_square: 3::green_square: 2::yellow_square: 1::red_square: Bolter::blue_square:" }]);
+		embed.addFields([
+			{ name: "Average Wire Score", value: (totalWireScore / totalWireCounts).toFixed(2), inline: true },
+			{ name: "Wire Guide", value: "4::orange_square: 3::green_square: 2::yellow_square: 1::red_square: Bolter::blue_square:", inline: true }
+		]);
 
 		// const attachment = new (await app.elo.getUserLog(user.id, targetSeason, achievementLogText), "history.txt");
 		// const files = [attachment];
