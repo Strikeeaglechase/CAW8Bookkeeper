@@ -50,6 +50,7 @@ class Greenie extends SlashCommand {
 				greenieBoard[member.aircraft].push(wireScoreEmoji(member.wire));
 				totalWireScore += wireScore(member.wire);
 				totalWireCounts++;
+				totalWireCounts += member.bolters;
 			}
 		});
 
@@ -69,7 +70,7 @@ class Greenie extends SlashCommand {
 		embed.setDescription(greenieBoardString);
 		embed.setFooter({ text: "Brought to you by C-137" });
 		embed.addFields([
-			{ name: "Average Wire Score", value: (totalWireScore / totalWireCounts).toFixed(2), inline: true },
+			{ name: "Wire GPA", value: (totalWireScore / totalWireCounts).toFixed(2), inline: true },
 			{ name: "Wire Guide", value: "4::orange_square: 3::green_square: 2::yellow_square: 1::red_square: Bolter::blue_square:", inline: true }
 		]);
 

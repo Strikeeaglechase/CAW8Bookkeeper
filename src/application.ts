@@ -111,13 +111,13 @@ export function replyOrEdit(iter: CommandInteraction, content: string | MessageP
 export const wireScore = (wire: number) => {
 	switch (wire) {
 		case 1:
-			return 0.25;
-		case 2:
-			return 0.75;
-		case 3:
 			return 1;
+		case 2:
+			return 3;
+		case 3:
+			return 4;
 		case 4:
-			return 0.5;
+			return 2;
 		default:
 			return 0;
 	}
