@@ -97,6 +97,7 @@ class Lookup extends SlashCommand {
 			if (member.wire) {
 				totalWireScore += wireScore(member.wire);
 				totalWireCounts++;
+				totalWireCounts += member.bolters;
 			}
 		});
 
@@ -146,7 +147,7 @@ class Lookup extends SlashCommand {
 				inline: true
 			},
 			{
-				name: "Average Wire Score",
+				name: "Wire GPA",
 				value: (totalWireScore / totalWireCounts).toFixed(2),
 				inline: true
 			}

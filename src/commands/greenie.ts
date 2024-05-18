@@ -2,9 +2,10 @@ import { AttachmentBuilder, EmbedBuilder } from "discord.js";
 import { SlashCommand, SlashCommandAutocompleteEvent, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 
-import { Application, OpUser, wireScore, wireScoreEmoji } from "../application.js";
+import { Application, OpUser, wireScore, wireScoreEmoji, wireScoreEmojiAvacado } from "../application.js";
 
 const aircraft = ["AV-42C", "F/A-26B", "F-45A", "AH-94", "T-55", "EF-24G"];
+const trollUsers = ["Avacado", "Freedom", "Freedomplaza", "Strikeeaglechase"];
 
 class Greenie extends SlashCommand {
 	private static lastNameLookupTime: number = 0;
@@ -34,31 +35,46 @@ class Greenie extends SlashCommand {
 
 		const info = await app.calcOpAwards(userEntry.username);
 
-		let totalWireScore = 0;
-		let totalWireCounts = 0;
 		let greenieBoard: Record<string, string[]> = {};
-
+		let totalWireScores: Record<string, number> = {};
+		let totalWireCounts: Record<string, number> = {};
+		let combinedWireScore = 0;
+		let combinedWireCount = 0;
 		info.opsAttended.forEach(op => {
 			const member = op.members.find(m => m.name == userEntry.username);
 
 			if (member.wire) {
 				if (!(member.aircraft in greenieBoard)) {
 					greenieBoard[member.aircraft] = [];
+					totalWireScores[member.aircraft] = 0;
+					totalWireCounts[member.aircraft] = 0;
 				}
 
-				greenieBoard[member.aircraft].push(...Array(member.bolters).fill(":blue_square:"));
-				greenieBoard[member.aircraft].push(wireScoreEmoji(member.wire));
-				totalWireScore += wireScore(member.wire);
-				totalWireCounts++;
+				greenieBoard[member.aircraft].push(...Array(member.bolters).fill(trollUsers.includes(userEntry.username) ? "💀" : "🟦"));
+				greenieBoard[member.aircraft].push(trollUsers.includes(userEntry.username) ? wireScoreEmojiAvacado(member.wire) : wireScoreEmoji(member.wire));
+				totalWireScores[member.aircraft] += wireScore(member.wire);
+				totalWireCounts[member.aircraft]++;
+				totalWireCounts[member.aircraft] += member.bolters;
+
+				combinedWireScore += wireScore(member.wire);
+				combinedWireCount++;
+				combinedWireCount += member.bolters;
 			}
 		});
 
 		let greenieBoardString = ``;
+		let averagesString = `\`${"Total".padEnd(7, " ")} ${(combinedWireScore / combinedWireCount).toFixed(2)}\`\n`;
 		let overflowFlag = false;
+
 		for (let aircraftName of aircraft) {
 			if (aircraftName in greenieBoard) {
+				//Creates Greenie Table
 				greenieBoardString += `\`${aircraftName.padEnd(7, " ")}\`${greenieBoard[aircraftName].slice(-24).join("")}\n`;
 				overflowFlag = greenieBoard[aircraftName].length >= 24 || overflowFlag;
+
+				//Calculates Averages per aircraft
+				let aircraftWireAverage = totalWireScores[aircraftName] / totalWireCounts[aircraftName];
+				averagesString += `\`${aircraftName.padEnd(7, " ")} ${aircraftWireAverage.toFixed(2)}\`\n`;
 			}
 		}
 
@@ -69,8 +85,8 @@ class Greenie extends SlashCommand {
 		embed.setDescription(greenieBoardString);
 		embed.setFooter({ text: "Brought to you by C-137" });
 		embed.addFields([
-			{ name: "Average Wire Score", value: (totalWireScore / totalWireCounts).toFixed(2), inline: true },
-			{ name: "Wire Guide", value: "4::orange_square: 3::green_square: 2::yellow_square: 1::red_square: Bolter::blue_square:", inline: true }
+			{ name: "Wire GPA (4 is highest)", value: averagesString, inline: true },
+			{ name: "Wire Guide", value: "4:🟧 3:🟩 2:🟨 1:🟥 Bolter:🟦", inline: true }
 		]);
 
 		//interaction.reply({ embeds: [embed], files: [attachment] });
