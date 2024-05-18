@@ -11,7 +11,7 @@ class Greenie extends SlashCommand {
 	private static lastNames: string[] = [];
 
 	name = "greenie";
-	description = "Looks up a user's greenie board";
+	description = "Generates a Greenie Board for the user";
 
 	public override async run(
 		{ interaction, app, framework }: SlashCommandEvent<Application>,
