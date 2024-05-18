@@ -123,6 +123,32 @@ export const wireScore = (wire: number) => {
 	}
 };
 
+//Returns emoji based on wire caught
+export const wireScoreEmoji = (wire: number) => {
+	switch (wire) {
+		case 1:
+			return ":sob:";
+		case 2:
+			return ":cry:";
+		case 3:
+			return ":smile:";
+		case 4:
+			return ":cry:";
+		default:
+			return ":sob:";
+	}
+};
+
+//Returns emoji based on wire/bolter score
+//Have to implement a way of saving those scores
+export const wireGradeEmoji = (wireError: number) => {
+	if(wireError < 25000){return ":smile:"}
+	else if(wireError < 40000){return ":cry:"}
+	else{return ":sob:"}
+}
+
+
+
 interface OldOp {
 	timeslot: string;
 	name: string;
