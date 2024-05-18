@@ -123,6 +123,22 @@ export const wireScore = (wire: number) => {
 	}
 };
 
+//Returns emoji based on wire caught
+export const wireScoreEmoji = (wire: number) => {
+	switch (wire) {
+		case 1:
+			return ":red_square:";
+		case 2:
+			return ":yellow_square:";
+		case 3:
+			return ":green_square:";
+		case 4:
+			return ":orange_square:";
+		default:
+			return ":question:";
+	}
+};
+
 interface OldOp {
 	timeslot: string;
 	name: string;
