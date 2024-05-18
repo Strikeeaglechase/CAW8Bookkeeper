@@ -2,7 +2,7 @@ import { AttachmentBuilder, EmbedBuilder } from "discord.js";
 import { SlashCommand, SlashCommandAutocompleteEvent, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 
-import { Application, OpUser, wireScore, wireGradeEmoji, wireScoreEmoji} from "../application.js";
+import { Application, OpUser, wireScore, wireGradeEmoji, wireScoreEmoji } from "../application.js";
 
 const qualifyRanks: { rank: string; uOps: number; tOps: number }[] = [
 	{ rank: "Recruit", uOps: 0, tOps: 0 },
@@ -97,9 +97,9 @@ class Lookup extends SlashCommand {
 
 			if (member.wire) {
 				totalWireScore += wireScore(member.wire);
-				greenieBoard += wireGradeEmoji(member.wire);
-				totalWireCounts++;		
-			}	
+				greenieBoard += wireScoreEmoji(member.wire);
+				totalWireCounts++;
+			}
 		});
 
 		let highestQualifyRank = qualifyRanks[0];
@@ -159,15 +159,6 @@ class Lookup extends SlashCommand {
 		const attachment = new AttachmentBuilder(Buffer.from(opLog), { name: "history.txt" });
 
 		interaction.reply({ embeds: [embed], files: [attachment] });
-
-		//Greenie Board test
-		const greenieEmbed = new EmbedBuilder();
-		embed.setTitle(`Greenie Board for ${userEntry.username}`);
-
-		interaction.reply({embeds: [greenieEmbed]});
-		interaction.reply(greenieBoard); //The embed builder says the value has a limit of 1024, which kinda bad for emojis
-		
-
 	}
 
 	public override async handleAutocomplete({ interaction, app }: SlashCommandAutocompleteEvent<Application>) {

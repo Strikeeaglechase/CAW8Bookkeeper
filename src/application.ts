@@ -127,15 +127,15 @@ export const wireScore = (wire: number) => {
 export const wireScoreEmoji = (wire: number) => {
 	switch (wire) {
 		case 1:
-			return ":sob:";
+			return ":red_square:";
 		case 2:
-			return ":cry:";
+			return ":yellow_square:";
 		case 3:
-			return ":smile:";
+			return ":green_square:";
 		case 4:
-			return ":cry:";
+			return ":orange_square:";
 		default:
-			return ":sob:";
+			return ":question:";
 	}
 };
 
