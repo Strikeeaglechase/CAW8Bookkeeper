@@ -9,10 +9,11 @@ import { Application } from "./application.js";
 
 dotenvConfig();
 const f = IntentsBitField.Flags;
+export const isDev = process.env.IS_DEV == "true";
 const frameworkOptions: FrameworkClientOptions = {
 	commandsPath: `${process.cwd()}/commands/`,
 	databaseOpts: {
-		databaseName: "caw8-bookkeeper" + (process.env.IS_DEV == "true" ? "-dev" : ""),
+		databaseName: "caw8-bookkeeper" + (isDev ? "-dev" : ""),
 		url: process.env.DB_URL
 	},
 	loggerOpts: {
@@ -28,7 +29,7 @@ const frameworkOptions: FrameworkClientOptions = {
 	name: "CAW8 Bookkeeper",
 	token: process.env.TOKEN,
 	ownerID: "272143648114606083",
-	slashCommandDevServer: process.env.IS_DEV == "true" ? "1222394236624965643" : "836755485935271966",
+	slashCommandDevServer: isDev ? "1222394236624965643" : "836755485935271966",
 	dmPrefixOnPing: true,
 	dmErrorSilently: false,
 	permErrorSilently: false,

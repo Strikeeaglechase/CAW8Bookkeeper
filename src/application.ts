@@ -73,6 +73,16 @@ export interface Award {
 	afterOpId: string;
 }
 
+export interface AwardInfoResult {
+	awards: Award[];
+	memberName: string;
+	fullOpsWithoutDeath: number;
+	fullOpsWithoutBolter: number;
+	overallTotalOpsWithoutBolter: number;
+	overallTotalOpsWithoutDeath: number;
+	opsAttended: DBOp[];
+}
+
 export function formatAndValidateSlot(slot: string) {
 	if (slot == null || slot.length == 0) return null;
 	slot = slot.toUpperCase();
@@ -304,6 +314,15 @@ class Application {
 		// 		if (!existing) await this.ops.add(op);
 		// 	})
 		// );
+
+		const allUsers = await this.users.collection.find({}).toArray();
+		let totalOpsAttended = 0;
+		allUsers.forEach(u => {
+			const opsAttended = ops.filter(op => op.members.find(m => m.name == u.username));
+			totalOpsAttended += opsAttended.length;
+		});
+		console.log(`Total ops attended: ${totalOpsAttended}`);
+		console.log(`Average ops attended: ${totalOpsAttended / allUsers.length}`);
 	}
 
 	private async loadOldOp(op: OldOp) {
@@ -738,7 +757,7 @@ class Application {
 		return embed;
 	}
 
-	public async calcOpAwards(memberName: string) {
+	public async calcOpAwards(memberName: string): Promise<AwardInfoResult> {
 		const opsAttended = await this.ops.collection.find({ "members.name": memberName }).toArray();
 		const awards: Award[] = [];
 

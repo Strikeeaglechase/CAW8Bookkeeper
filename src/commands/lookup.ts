@@ -3,15 +3,7 @@ import { SlashCommand, SlashCommandAutocompleteEvent, SlashCommandEvent } from "
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 
 import { Application, OpUser, wireScore } from "../application.js";
-
-const qualifyRanks: { rank: string; uOps: number; tOps: number }[] = [
-	{ rank: "Recruit", uOps: 0, tOps: 0 },
-	{ rank: "Ensign", uOps: 1, tOps: 1 },
-	{ rank: "Lieutenant Junior Grade", uOps: 2, tOps: 3 },
-	{ rank: "Lieutenant", uOps: 3, tOps: 6 },
-	{ rank: "Lieutenant Commander", uOps: 5, tOps: 8 },
-	{ rank: "Commander", uOps: 8, tOps: 12 }
-];
+import { getHighestQualRank } from "../ranks.js";
 
 class Lookup extends SlashCommand {
 	private static lastNameLookupTime: number = 0;
@@ -101,12 +93,7 @@ class Lookup extends SlashCommand {
 			}
 		});
 
-		let highestQualifyRank = qualifyRanks[0];
-		for (let i = 0; i < qualifyRanks.length; i++) {
-			if (uOps >= qualifyRanks[i].uOps && tOps >= qualifyRanks[i].tOps) {
-				highestQualifyRank = qualifyRanks[i];
-			}
-		}
+		const highestQualifyRank = getHighestQualRank(uOps, tOps);
 
 		const embed = new EmbedBuilder();
 		embed.setTitle(`Op Record for ${userEntry.username}`);
