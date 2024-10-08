@@ -68,7 +68,8 @@ class Attend extends SlashCommand {
 						"members.$[elem].bolters": bolters ?? null,
 						"members.$[elem].wire": wire ?? null,
 						"members.$[elem].combatDeaths": combatDeaths ?? null,
-						"members.$[elem].remarks": remarks
+						"members.$[elem].remarks": remarks,
+						"members.$[elem].aircraft": opSlot.aircraft
 					}
 				},
 				{ arrayFilters: [{ "elem.name": opUser.username }] }
