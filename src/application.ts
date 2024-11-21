@@ -35,6 +35,7 @@ export interface OpUser {
 	id: string;
 	username: string;
 	discordId: string;
+	steamId: string;
 }
 
 export type CompletionType = "Arrested" | "Vertical" | "DNF" | "Airfield" | "Nonpilot" | "NA";
@@ -184,6 +185,7 @@ interface OldOp {
 interface Config {
 	commandAccessRole: string;
 	nicknameNotifyChannel: string;
+	mainServerId: string;
 	id: "config";
 }
 
@@ -333,8 +335,20 @@ class Application {
 	private configureApi() {
 		this.api = express();
 		this.api.get("/user/:id", async (req, res) => {
-			const user = await this.users.collection.findOne({ id: req.params.id });
-			res.json(user);
+			const user = await this.users.collection.findOne({ steamId: req.params.id });
+			if (!user) {
+				res.sendStatus(404);
+				return;
+			}
+
+			const isAuthed = await this.isUserAuthed(user);
+			const userAwards = await this.calcOpAwards(user.username);
+			const result = {
+				user: user,
+				isAuthed: isAuthed,
+				awards: userAwards
+			};
+			res.json(result);
 		});
 
 		this.api.listen(parseInt(process.env.PORT), () => {
@@ -573,7 +587,7 @@ class Application {
 		dbOp.members.forEach(member => {
 			const existingUser = opUsersToAdd.find(u => u.username == member.name);
 			if (!existingUser) {
-				opUsersToAdd.push({ id: uuidv4(), username: member.name, discordId: null });
+				opUsersToAdd.push({ id: uuidv4(), username: member.name, discordId: null, steamId: null });
 			}
 		});
 
@@ -651,7 +665,8 @@ class Application {
 		const newConfig: Config = {
 			id: "config",
 			commandAccessRole: null,
-			nicknameNotifyChannel: null
+			nicknameNotifyChannel: null,
+			mainServerId: null
 		};
 
 		await this.configDb.add(newConfig);
@@ -682,11 +697,22 @@ class Application {
 		return true;
 	}
 
+	public async isUserAuthed(user: OpUser): Promise<boolean> {
+		const config = await this.getConfig();
+		if (!config.commandAccessRole || !config.mainServerId) return false;
+		const server = await this.framework.client.guilds.fetch(config.mainServerId);
+		const member = await server.members.fetch(user.discordId).catch(() => null);
+		if (!member) return false;
+
+		return member.roles.cache.has(config.commandAccessRole);
+	}
+
 	public async createUser(name: string, discordId: string = null) {
 		const newUserObj: OpUser = {
 			id: uuidv4(),
 			username: name,
-			discordId: discordId
+			discordId: discordId,
+			steamId: null
 		};
 
 		await this.users.add(newUserObj);
