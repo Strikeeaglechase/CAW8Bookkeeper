@@ -1,4 +1,5 @@
 import { CommandInteraction, EmbedBuilder, GuildMember, InteractionEditReplyOptions, MessagePayload, TextChannel } from "discord.js";
+import express from "express";
 import fs from "fs";
 import { JWT } from "google-auth-library";
 import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from "google-spreadsheet";
@@ -204,6 +205,8 @@ class Application {
 	public userSelectedOps: Record<string, string> = {};
 	public activeOp: string;
 
+	private api: express.Express;
+
 	// private handledNicknameUpdates: string[] = [];
 
 	constructor(public framework: FrameworkClient) {
@@ -218,6 +221,8 @@ class Application {
 		this.users = await this.framework.database.collection("users", false, "id");
 		this.configDb = await this.framework.database.collection("config", false, "id");
 		this.userNicknames = await this.framework.database.collection("userNicknames", false, "id");
+
+		this.configureApi();
 
 		const serverId = process.env.IS_DEV == "true" ? "1222394236624965643" : "836755485935271966";
 		const server = await this.framework.client.guilds.fetch(serverId);
@@ -323,6 +328,18 @@ class Application {
 		});
 		console.log(`Total ops attended: ${totalOpsAttended}`);
 		console.log(`Average ops attended: ${totalOpsAttended / allUsers.length}`);
+	}
+
+	private configureApi() {
+		this.api = express();
+		this.api.get("/user/:id", async (req, res) => {
+			const user = await this.users.collection.findOne({ id: req.params.id });
+			res.json(user);
+		});
+
+		this.api.listen(parseInt(process.env.PORT), () => {
+			this.log.info(`API listening on port ${process.env.PORT}`);
+		});
 	}
 
 	private async loadOldOp(op: OldOp) {
