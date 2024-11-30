@@ -62,10 +62,20 @@ export interface DBOp {
 	members: DBOpMember[];
 }
 
+export interface OpFLReservations {
+	id: string;
+	messageId: string;
+	channelId: string;
+	opName: string;
+
+	reservations: Record<string, Record<string, string>>; // Timeslot: { Slot: Name }
+}
+
 export interface OpSlotConfig {
 	id: string;
 	slot: string;
 	slotName: string;
+	slotDescription: string;
 	aircraft: string;
 	opName: string;
 }
@@ -186,6 +196,7 @@ interface Config {
 	commandAccessRole: string;
 	nicknameNotifyChannel: string;
 	mainServerId: string;
+	flightLeadRole: string;
 	id: "config";
 }
 
@@ -201,11 +212,13 @@ class Application {
 	public ops: CollectionManager<DBOp>;
 	public users: CollectionManager<OpUser>;
 	public slots: CollectionManager<OpSlotConfig>;
+	public reservations: CollectionManager<OpFLReservations>;
 	private configDb: CollectionManager<Config>;
 	private userNicknames: CollectionManager<UserNicknameEntry>;
 
 	public userSelectedOps: Record<string, string> = {};
 	public activeOp: string;
+	public opActiveAt: number;
 
 	private api: express.Express;
 
@@ -220,6 +233,7 @@ class Application {
 
 		this.ops = await this.framework.database.collection("ops", false, "id");
 		this.slots = await this.framework.database.collection("slots", false, "id");
+		this.reservations = await this.framework.database.collection("reservations", false, "id");
 		this.users = await this.framework.database.collection("users", false, "id");
 		this.configDb = await this.framework.database.collection("config", false, "id");
 		this.userNicknames = await this.framework.database.collection("userNicknames", false, "id");
@@ -666,7 +680,8 @@ class Application {
 			id: "config",
 			commandAccessRole: null,
 			nicknameNotifyChannel: null,
-			mainServerId: null
+			mainServerId: null,
+			flightLeadRole: null
 		};
 
 		await this.configDb.add(newConfig);
@@ -689,6 +704,27 @@ class Application {
 		}
 
 		const hasRole = interaction.member.roles.cache.has(config.commandAccessRole);
+		if (!hasRole) {
+			await interaction.reply(this.framework.error("You do not have permission to run this command", true));
+			return false;
+		}
+
+		return true;
+	}
+
+	public async isFlightLead(interaction: CommandInteraction) {
+		const config = await this.getConfig();
+		if (!config.flightLeadRole) {
+			await interaction.reply(this.framework.error("No flight lead role set in config", true));
+			return false;
+		}
+
+		if (!(interaction.member instanceof GuildMember)) {
+			await interaction.reply(this.framework.error("This command can only be run in a guild", true));
+			return false;
+		}
+
+		const hasRole = interaction.member.roles.cache.has(config.flightLeadRole);
 		if (!hasRole) {
 			await interaction.reply(this.framework.error("You do not have permission to run this command", true));
 			return false;
@@ -853,6 +889,57 @@ class Application {
 		});
 
 		return { awards, memberName, fullOpsWithoutDeath, fullOpsWithoutBolter, overallTotalOpsWithoutBolter, overallTotalOpsWithoutDeath, opsAttended };
+	}
+
+	public async getReservations(opName: string) {
+		const res = await this.reservations.collection.findOne({ opName: opName });
+		if (res) return res;
+
+		const newRes: OpFLReservations = {
+			id: uuidv4(),
+			messageId: null,
+			channelId: null,
+			opName: opName,
+			reservations: {}
+		};
+
+		await this.reservations.add(newRes);
+
+		return newRes;
+	}
+
+	public async updateReservationsMessage(opName: string) {
+		const res = await this.getReservations(opName);
+		if (!res.messageId || !res.channelId) return;
+		const ops = await this.ops.collection.find({ name: opName }).toArray();
+		const slots = await this.slots.collection.find({ opName: opName }).toArray();
+
+		const channel = await this.framework.client.channels.fetch(res.channelId).catch(e => null);
+		if (!(channel instanceof TextChannel)) return;
+
+		const message = await channel.messages.fetch(res.messageId).catch((e): null => null);
+		if (!message) return;
+
+		const embed = new EmbedBuilder();
+		embed.setTitle(`Reservations for ${opName}`);
+		ops.forEach(op => {
+			let text = `\`\`\`\n`;
+			const acPad = Math.max(...slots.map(s => s.aircraft.length));
+			const slotPad = Math.max(...slots.map(s => s.slotName.length)) + 4;
+
+			slots.forEach(slot => {
+				const reserved = res.reservations[op.timeslot]?.[slot.slot];
+				const ac = slot.aircraft.padEnd(acPad, " ");
+				const slotName = `${slot.slotName} 1-1`.padEnd(slotPad, " ");
+				text += `${ac} ${slotName} - ${reserved ?? "Open"}\n`;
+			});
+
+			text += `\`\`\``;
+
+			embed.addFields({ name: op.timeslot, value: text });
+		});
+
+		message.edit({ embeds: [embed], content: "" });
 	}
 
 	private loadCreds() {

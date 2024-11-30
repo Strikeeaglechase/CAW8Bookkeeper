@@ -43,10 +43,12 @@ class OpSetSlot extends SlashCommand {
 			slot: slot,
 			slotName: name,
 			aircraft: aircraft,
+			slotDescription: "",
 			id: uuidv4()
 		};
 
 		await app.slots.add(slotEntry);
+		app.updateReservationsMessage(opName);
 
 		replyOrEdit(interaction, framework.success(`Assigned slot ${slot} (${name}) to ${aircraft} for ${opName}`));
 	}

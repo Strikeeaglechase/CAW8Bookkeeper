@@ -5,6 +5,7 @@ import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.j
 import { Application, CompletionType, DBOpMember, formatAndValidateSlot } from "../application.js";
 import { finishTypes } from "./record.js";
 
+const ACTIVE_OP_TIMEOUT = 90 * 60 * 1000; // 90 minutes
 class Attend extends SlashCommand {
 	name = "attend";
 	description = "Marks yourself as having attended the active op";
@@ -17,7 +18,7 @@ class Attend extends SlashCommand {
 		@SArg({ required: false }) bolters: number,
 		@SArg({ min: 0, max: 4, required: false }) wire: number
 	) {
-		if (app.activeOp == null) {
+		if (app.activeOp == null || Date.now() - app.opActiveAt > ACTIVE_OP_TIMEOUT) {
 			await interaction.reply(framework.error("No active op set, have the person running the op run `/op enable`"));
 			return;
 		}
