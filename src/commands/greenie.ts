@@ -83,7 +83,7 @@ class Greenie extends SlashCommand {
 
 		const embed = new EmbedBuilder();
 		embed.setTitle(`Greenie Board for ${userEntry.username}`);
-		embed.setDescription(greenieBoardString);
+		embed.setDescription(greenieBoardString || "No data found");
 		embed.setFooter({ text: "Brought to you by C-137" });
 		embed.addFields([
 			{ name: "Wire GPA (4 is highest)", value: averagesString, inline: true },
