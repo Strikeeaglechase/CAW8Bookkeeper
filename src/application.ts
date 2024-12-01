@@ -3,6 +3,7 @@ import express from "express";
 import fs from "fs";
 import { JWT } from "google-auth-library";
 import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from "google-spreadsheet";
+import path from "path";
 import FrameworkClient from "strike-discord-framework";
 import { CollectionManager } from "strike-discord-framework/dist/collectionManager.js";
 import Logger from "strike-discord-framework/dist/logger.js";
@@ -197,6 +198,10 @@ interface Config {
 	nicknameNotifyChannel: string;
 	mainServerId: string;
 	flightLeadRole: string;
+
+	nextChapTime: number;
+	nextChapNum: number;
+
 	id: "config";
 }
 
@@ -344,6 +349,51 @@ class Application {
 		});
 		console.log(`Total ops attended: ${totalOpsAttended}`);
 		console.log(`Average ops attended: ${totalOpsAttended / allUsers.length}`);
+
+		const config = await this.getConfig();
+		if (!config.nextChapTime) {
+			config.nextChapTime = new Date("2024-12-01T05:00:00.000Z").getTime();
+			config.nextChapNum = 0;
+			const delta = (config.nextChapTime - Date.now()) / 1000 / 60;
+			console.log(`Next chap time is in ${delta} minutes`);
+			await this.setConfig(config);
+		}
+
+		this.log.info(`Next chap time: ${new Date(config.nextChapTime).toLocaleString()}, ${config.nextChapTime - Date.now()}ms`);
+		setTimeout(() => this.runChapTime(), config.nextChapTime - Date.now());
+
+		// const chapPics = fs.readdirSync("../chaperone");
+		// console.log(`Found ${chapPics.length} chaperone pics`);
+		// const randomized: string[] = [];
+		// while (chapPics.length > 0) {
+		// 	const idx = Math.floor(Math.random() * chapPics.length);
+		// 	randomized.push(chapPics.splice(idx, 1)[0]);
+		// }
+
+		// randomized.forEach((pic, idx) => {
+		// 	console.log(`Renaming ${pic} to chaperone${idx}.png`);
+		// 	fs.renameSync(`../chaperone/${pic}`, `../chaperone/chaperone${idx}.png`);
+		// });
+	}
+
+	private async runChapTime() {
+		this.log.info(`Chap time!`);
+		const guild = await this.framework.client.guilds.fetch("836755485935271966");
+		const channel = (await guild.channels.fetch("1312636775373606952")) as TextChannel;
+		const config = await this.getConfig();
+		const imagePath = `../chaperone/chaperone${config.nextChapNum}.png`;
+
+		channel.send({
+			content: `<@1182876876860035083> Chaperone time!`,
+			files: [path.resolve(imagePath)]
+		});
+
+		const nextTime = Date.now() + 1000 * 60 * 60 * 24;
+		config.nextChapTime = nextTime;
+		config.nextChapNum++;
+		await this.setConfig(config);
+		this.log.info(`Next chap time: ${new Date(config.nextChapTime).toLocaleString()}, ${config.nextChapTime - Date.now()}ms`);
+		setTimeout(() => this.runChapTime(), config.nextChapTime - Date.now());
 	}
 
 	private configureApi() {
@@ -681,7 +731,9 @@ class Application {
 			commandAccessRole: null,
 			nicknameNotifyChannel: null,
 			mainServerId: null,
-			flightLeadRole: null
+			flightLeadRole: null,
+			nextChapTime: Date.now(),
+			nextChapNum: 1
 		};
 
 		await this.configDb.add(newConfig);
