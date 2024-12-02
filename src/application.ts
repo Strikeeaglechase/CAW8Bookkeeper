@@ -384,7 +384,7 @@ class Application {
 		const imagePath = `../chaperone/chaperone${config.nextChapNum}.png`;
 
 		channel.send({
-			content: `<@1182876876860035083> Chaperone time!`,
+			content: `<@&1182876876860035083> Chaperone time!`,
 			files: [path.resolve(imagePath)]
 		});
 
