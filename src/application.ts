@@ -435,7 +435,7 @@ class Application {
 
 			const audit = await guild.fetchAuditLogs();
 			const timeoutAction = audit.entries.find(e => {
-				if (e.target.id != targetUser.id || e.action != AuditLogEvent.MemberUpdate) return;
+				if (!e.target || e.target.id != targetUser.id || e.action != AuditLogEvent.MemberUpdate) return;
 				const changes = e.changes.find(c => c.key == "communication_disabled_until");
 				if (!changes) return false;
 
