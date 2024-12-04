@@ -419,7 +419,7 @@ class Application {
 		});
 
 		this.api.get("/check_timed_out/:id", async (req, res) => {
-			const guild = await this.framework.client.guilds.fetch(isDev ? "1222394236624965643" : "836755485935271966");
+			const guild = await this.framework.client.guilds.fetch("836755485935271966");
 			const targetUser = await guild.members.fetch(req.params.id).catch((): null => null);
 			if (!targetUser) {
 				console.log(`User not found`);
@@ -427,7 +427,7 @@ class Application {
 				return;
 			}
 
-			if (targetUser.communicationDisabledUntil.getTime() < Date.now()) {
+			if (!targetUser.communicationDisabledUntil || targetUser.communicationDisabledUntil.getTime() < Date.now()) {
 				console.log(`User not timed out`);
 				res.json({ timedOutBy: null });
 				return;
