@@ -1,4 +1,4 @@
-import { CommandInteraction, EmbedBuilder, GuildMember, InteractionEditReplyOptions, MessagePayload, TextChannel } from "discord.js";
+import { AuditLogEvent, CommandInteraction, EmbedBuilder, GuildMember, InteractionEditReplyOptions, MessagePayload, TextChannel } from "discord.js";
 import express from "express";
 import fs from "fs";
 import { JWT } from "google-auth-library";
@@ -9,6 +9,7 @@ import { CollectionManager } from "strike-discord-framework/dist/collectionManag
 import Logger from "strike-discord-framework/dist/logger.js";
 import { v4 as uuidv4 } from "uuid";
 
+import { isDev } from "./index.js";
 import { SheetParseResult } from "./parseSheets.js";
 
 export const timeslots = [
@@ -350,17 +351,19 @@ class Application {
 		console.log(`Total ops attended: ${totalOpsAttended}`);
 		console.log(`Average ops attended: ${totalOpsAttended / allUsers.length}`);
 
-		const config = await this.getConfig();
-		if (!config.nextChapTime) {
-			config.nextChapTime = new Date("2024-12-01T05:00:00.000Z").getTime();
-			config.nextChapNum = 0;
-			const delta = (config.nextChapTime - Date.now()) / 1000 / 60;
-			console.log(`Next chap time is in ${delta} minutes`);
-			await this.setConfig(config);
-		}
+		if (!isDev) {
+			const config = await this.getConfig();
+			if (!config.nextChapTime) {
+				config.nextChapTime = new Date("2024-12-01T05:00:00.000Z").getTime();
+				config.nextChapNum = 0;
+				const delta = (config.nextChapTime - Date.now()) / 1000 / 60;
+				console.log(`Next chap time is in ${delta} minutes`);
+				await this.setConfig(config);
+			}
 
-		this.log.info(`Next chap time: ${new Date(config.nextChapTime).toLocaleString()}, ${config.nextChapTime - Date.now()}ms`);
-		setTimeout(() => this.runChapTime(), config.nextChapTime - Date.now());
+			this.log.info(`Next chap time: ${new Date(config.nextChapTime).toLocaleString()}, ${config.nextChapTime - Date.now()}ms`);
+			setTimeout(() => this.runChapTime(), config.nextChapTime - Date.now());
+		}
 
 		// const chapPics = fs.readdirSync("../chaperone");
 		// console.log(`Found ${chapPics.length} chaperone pics`);
@@ -396,7 +399,7 @@ class Application {
 		setTimeout(() => this.runChapTime(), config.nextChapTime - Date.now());
 	}
 
-	private configureApi() {
+	private async configureApi() {
 		this.api = express();
 		this.api.get("/user/:id", async (req, res) => {
 			const user = await this.users.collection.findOne({ steamId: req.params.id });
@@ -413,6 +416,40 @@ class Application {
 				awards: userAwards
 			};
 			res.json(result);
+		});
+
+		this.api.get("/check_timed_out/:id", async (req, res) => {
+			const guild = await this.framework.client.guilds.fetch(isDev ? "1222394236624965643" : "836755485935271966");
+			const targetUser = await guild.members.fetch(req.params.id).catch((): null => null);
+			if (!targetUser) {
+				console.log(`User not found`);
+				res.sendStatus(404);
+				return;
+			}
+
+			if (targetUser.communicationDisabledUntil.getTime() < Date.now()) {
+				console.log(`User not timed out`);
+				res.json({ timedOutBy: null });
+				return;
+			}
+
+			const audit = await guild.fetchAuditLogs();
+			const timeoutAction = audit.entries.find(e => {
+				if (e.target.id != targetUser.id || e.action != AuditLogEvent.MemberUpdate) return;
+				const changes = e.changes.find(c => c.key == "communication_disabled_until");
+				if (!changes) return false;
+
+				const td = new Date(changes.new as string).getTime() - targetUser.communicationDisabledUntil.getTime();
+				return td == 0;
+			});
+
+			if (!timeoutAction) {
+				console.log(`No timeout action found`);
+				res.sendStatus(500);
+				return;
+			}
+
+			res.json({ timedOutBy: timeoutAction.executor.id });
 		});
 
 		this.api.listen(parseInt(process.env.PORT), () => {
