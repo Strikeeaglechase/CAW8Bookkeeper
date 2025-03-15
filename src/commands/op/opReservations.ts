@@ -16,8 +16,8 @@ class OpReservations extends SlashCommand {
 		if (reservationsObject.channelId != null && reservationsObject.messageId != null) {
 			const channel = await interaction.guild.channels.fetch(reservationsObject.channelId).catch(e => null);
 			if (channel != null) {
-				const message = await (channel as TextChannel).messages.fetch(reservationsObject.messageId).catch(e => null);
-				if (message) await message.delete();
+				const message = await (channel as TextChannel).messages.fetch(reservationsObject.messageId).catch((e: Error): null => null);
+				if (message) await message.delete().catch(e => null);
 			}
 		}
 
