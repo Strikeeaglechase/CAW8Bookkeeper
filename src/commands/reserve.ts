@@ -31,6 +31,7 @@ class Reserve extends SlashCommand {
 		}
 
 		const res = await app.getReservations(opName);
+		let hasReplied = false;
 
 		const slotDesignation = validSlot[0];
 		if (!res.reservations[timeslot]) res.reservations[timeslot] = {};
@@ -38,12 +39,14 @@ class Reserve extends SlashCommand {
 		if (existingRes) {
 			const result = await interactionConfirm(`Slot ${slotDesignation} is already reserved by ${existingRes}, do you want to replace them?`, interaction);
 			if (!result) return;
+
+			hasReplied = true;
 		}
 
 		res.reservations[timeslot][slotDesignation] = interaction.user.username;
 		await app.reservations.collection.updateOne({ opName }, { $set: { reservations: res.reservations } });
 		app.updateReservationsMessage(opName);
-		replyOrEdit(interaction, framework.success(`Slot ${slotDesignation} reserved for ${interaction.user.username}`));
+		replyOrEdit(interaction, framework.success(`Slot ${slotDesignation} reserved for ${interaction.user.username}`, hasReplied));
 	}
 
 	public override async handleAutocomplete({ interaction, app }: SlashCommandAutocompleteEvent<Application>) {
