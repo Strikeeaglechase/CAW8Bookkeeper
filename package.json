@@ -18,7 +18,8 @@
 		"google-auth-library": "^8.9.0",
 		"google-spreadsheet": "^4.0.2",
 		"reflect-metadata": "^0.1.13",
-		"strike-discord-framework": "^1.5.7",
+		"strike-discord-framework": "^1.5.10",
+		"typescript": "^5.8.3",
 		"uuid": "^9.0.1"
 	},
 	"devDependencies": {
