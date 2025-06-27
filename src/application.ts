@@ -471,6 +471,15 @@ class Application {
 
 			res.json({ timedOutBy: timeoutAction.executor.id });
 		});
+		this.api.get("/cawlogo.png", (req, res) => {
+			const filePath = path.resolve("../CAWLOGO.png");
+			if (!fs.existsSync(filePath)) {
+				this.log.error(`CAWLOGO.png not found at ${filePath}`);
+				res.sendStatus(404);
+				return;
+			}
+			res.sendFile(filePath);
+		});
 
 		this.api.listen(parseInt(process.env.PORT), () => {
 			this.log.info(`API listening on port ${process.env.PORT}`);
@@ -1213,9 +1222,7 @@ class Application {
 		embed.setTimestamp();
 		embed.setAuthor({
 			name: "CAW-8 Attendance and Wire GPA Leaderboards",
-
-			iconURL:
-				"https://cdn.discordapp.com/attachments/819780766262099968/1388031189373423617/CVW-8_Emblem.svg.png?ex=685f8047&is=685e2ec7&hm=fe35593ea93da28b01946dee35e2291e2e00f4a22d4f1a20bfc6ee262a5235b0&"
+			iconURL: "https://book.caw8.net/cawlogo.png"
 		});
 		return embed;
 	}
