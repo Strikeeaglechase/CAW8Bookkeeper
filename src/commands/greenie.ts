@@ -5,7 +5,7 @@ import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.j
 import { Application, OpUser, wireScore, wireScoreEmoji } from "../application.js";
 
 const aircraft = ["AV-42C", "F/A-26B", "F-45A", "AH-94", "T-55", "EF-24G"];
-const trollUsers = ["Avacado", "Freedom", "Freedomplaza", "Strikeeaglechase"];
+const trollUsers = ["Chaperone", "Freedom", "Freedomplaza", "Strikeeaglechase", "hawk"];
 
 class Greenie extends SlashCommand {
 	private static lastNameLookupTime: number = 0;
