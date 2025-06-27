@@ -1,4 +1,13 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, ComponentType, EmbedBuilder } from "discord.js";
+import {
+	ActionRowBuilder,
+	ButtonBuilder,
+	ButtonStyle,
+	CommandInteraction,
+	ComponentType,
+	EmbedBuilder,
+	MessagePayload,
+	InteractionEditReplyOptions
+} from "discord.js";
 
 export function interactionConfirm(prompt: string, iter: CommandInteraction) {
 	const emb = new EmbedBuilder();
@@ -66,4 +75,12 @@ export function interactionConfirm(prompt: string, iter: CommandInteraction) {
 			clearTimeout(timeout);
 		});
 	});
+}
+
+export function replyOrEdit(iter: CommandInteraction, content: string | MessagePayload | InteractionEditReplyOptions) {
+	if (iter.replied || iter.deferred) {
+		return iter.editReply(content);
+	} else {
+		return iter.reply(content);
+	}
 }

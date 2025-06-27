@@ -40,6 +40,16 @@ export interface OpUser {
 	steamId: string;
 }
 
+interface LeaderboardUserData {
+	username: string;
+	totalWires: number;
+	wireScore: number;
+	wireGpa: string;
+	opsAttended: number;
+	uniqueOpsAttended: number;
+	opsAttendedNames: string[];
+}
+
 export type CompletionType = "Arrested" | "Vertical" | "DNF" | "Airfield" | "Nonpilot" | "NA";
 export interface DBOpMember {
 	name: string;
@@ -95,6 +105,13 @@ export interface AwardInfoResult {
 	overallTotalOpsWithoutBolter: number;
 	overallTotalOpsWithoutDeath: number;
 	opsAttended: DBOp[];
+}
+
+export interface ScoreboardMessage {
+	messageId: string;
+	channelId: string;
+	guildId: string;
+	id: string;
 }
 
 export function formatAndValidateSlot(slot: string) {
@@ -219,6 +236,7 @@ class Application {
 	public users: CollectionManager<OpUser>;
 	public slots: CollectionManager<OpSlotConfig>;
 	public reservations: CollectionManager<OpFLReservations>;
+	public scoreboardMessages: CollectionManager<ScoreboardMessage>;
 	private configDb: CollectionManager<Config>;
 	private userNicknames: CollectionManager<UserNicknameEntry>;
 
@@ -236,7 +254,7 @@ class Application {
 
 	public async init() {
 		this.log.info(`Application has started!`);
-
+		this.scoreboardMessages = await this.framework.database.collection("scoreboard-messages", false, "id");
 		this.ops = await this.framework.database.collection("ops", false, "id");
 		this.slots = await this.framework.database.collection("slots", false, "id");
 		this.reservations = await this.framework.database.collection("reservations", false, "id");
@@ -377,6 +395,8 @@ class Application {
 		// 	console.log(`Renaming ${pic} to chaperone${idx}.png`);
 		// 	fs.renameSync(`../chaperone/${pic}`, `../chaperone/chaperone${idx}.png`);
 		// });
+		const scoreboardUpdateRate = process.env.IS_DEV == "true" ? 1000 * 10 : 1000 * 60; // 10 seconds in dev, 1 minute in prod
+		setInterval(() => this.updateScoreboards(), scoreboardUpdateRate);
 	}
 
 	private async runChapTime() {
@@ -1135,6 +1155,124 @@ class Application {
 
 		sheet.saveUpdatedCells();
 	}
-}
 
+	private async createScoreboardMessage() {
+		const embed = new EmbedBuilder({});
+
+		const ops = await this.ops.collection.find({}).toArray();
+		const leaderboardUsers: Record<string, LeaderboardUserData> = {};
+		ops.forEach(op => {
+			op.members.forEach(member => {
+				if (!leaderboardUsers[member.name]) {
+					leaderboardUsers[member.name] = {
+						username: member.name,
+						opsAttended: 0,
+						uniqueOpsAttended: 0,
+						wireScore: 0,
+						totalWires: 0,
+						wireGpa: "0",
+						opsAttendedNames: []
+					};
+				}
+
+				leaderboardUsers[member.name].opsAttended++;
+				leaderboardUsers[member.name].opsAttendedNames.push(op.name);
+				if (member.wire) {
+					leaderboardUsers[member.name].wireScore += wireScore(member.wire);
+					leaderboardUsers[member.name].totalWires++;
+					leaderboardUsers[member.name].wireGpa = (leaderboardUsers[member.name].wireScore / leaderboardUsers[member.name].totalWires).toFixed(2);
+				}
+				leaderboardUsers[member.name].uniqueOpsAttended = new Set(leaderboardUsers[member.name].opsAttendedNames).size;
+			});
+		});
+
+		const attendenceTable: (string | number)[][] = [["#", "Username", "Ops Attended", "Unique Ops Attended"]];
+		const wireTable: (string | number)[][] = [["#", "Username", "Wire GPA", "Total Wires"]];
+		const leaderboardUsersArray = Object.values(leaderboardUsers).sort((a, b) => b.opsAttended - a.opsAttended);
+		const leaderboardLength = 30;
+
+		leaderboardUsersArray.forEach((user, idx) => {
+			if (idx >= leaderboardLength) return;
+			attendenceTable.push([idx + 1, user.username, user.opsAttended, user.uniqueOpsAttended]);
+		});
+
+		const leaderboardUsersArraySortedByWire = Object.values(leaderboardUsers).sort((a, b) => parseFloat(b.wireGpa) - parseFloat(a.wireGpa));
+		let wireLdbIdx = 0;
+		leaderboardUsersArraySortedByWire.forEach((user, idx) => {
+			if (wireLdbIdx >= leaderboardLength) return;
+			if (user.totalWires < 15) return;
+			wireTable.push([wireLdbIdx + 1, user.username, user.wireGpa, user.totalWires]);
+			wireLdbIdx++;
+		});
+
+		wireTable.sort((a, b) => (typeof a[2] === "number" && typeof b[2] === "number" ? b[2] - a[2] : 0));
+		const attendenceText = this.table(attendenceTable, 32).join("\n");
+		const wireText = this.table(wireTable, 32).join("\n");
+		embed.setDescription(`**Ops Attended:** \`\`\`ansi\n${attendenceText}\n\`\`\`\n\n**Wire GPA:** \`\`\`${wireText}\n\`\`\``);
+		embed.setFooter({ text: `Top ${leaderboardLength} users since 23 July 2023\n ` });
+		embed.setTimestamp();
+		embed.setAuthor({
+			name: "CAW-8 Attendance and Wire GPA Leaderboards",
+
+			iconURL:
+				"https://cdn.discordapp.com/attachments/819780766262099968/1388031189373423617/CVW-8_Emblem.svg.png?ex=685f8047&is=685e2ec7&hm=fe35593ea93da28b01946dee35e2291e2e00f4a22d4f1a20bfc6ee262a5235b0&"
+		});
+		return embed;
+	}
+
+	private async updateScoreboards() {
+		const scoreboards = await this.scoreboardMessages.get();
+		const embed = await this.createScoreboardMessage();
+		const proms = scoreboards.map(async scoreboard => {
+			const channel = (await this.framework.client.channels.fetch(scoreboard.channelId).catch(() => {})) as unknown as TextChannel;
+			if (!channel) return;
+			const msg = await channel.messages.fetch(scoreboard.messageId).catch(() => {});
+			if (!msg) return;
+
+			await msg.edit({ embeds: [embed] }).catch(e => {
+				this.log.warn(`Unable to update scoreboard: ${e}`);
+				console.log(e);
+			});
+		});
+
+		await Promise.all(proms);
+	}
+
+	public async createScoreboard(interaction: CommandInteraction) {
+		const emb = new EmbedBuilder({ title: "Scoreboard" });
+		const msg = await interaction.channel.send({ embeds: [emb] }).catch(() => {});
+		if (!msg) {
+			this.log.error(`Unable to send message in channel ${interaction.channel.id}`);
+			return;
+		}
+
+		const scoreboard: ScoreboardMessage = {
+			messageId: msg.id,
+			channelId: msg.channel.id,
+			guildId: msg.guild.id,
+			id: uuidv4()
+		};
+		await this.scoreboardMessages.add(scoreboard);
+
+		this.log.info(`Created new scoreboard ${scoreboard.id} (${scoreboard.messageId}) in channel ${scoreboard.channelId} in guild ${scoreboard.guildId}`);
+		return scoreboard;
+	}
+
+	public async deleteScoreboard(scoreboard: ScoreboardMessage) {
+		const channel = (await this.framework.client.channels.fetch(scoreboard.channelId).catch(() => {})) as unknown as TextChannel;
+		if (channel) {
+			const msg = await channel.messages.fetch(scoreboard.messageId).catch(() => {});
+			if (msg) {
+				await msg.delete().catch(() => {});
+			} else {
+				this.log.warn(`Could not find message ${scoreboard.messageId} in channel ${scoreboard.channelId} for deletion`);
+			}
+		} else {
+			this.log.warn(`Could not find channel ${scoreboard.channelId} for deletion`);
+		}
+
+		this.log.info(`Deleting scoreboard ${scoreboard.id}`);
+		await this.scoreboardMessages.remove(scoreboard.id);
+	}
+}
 export { Application };
