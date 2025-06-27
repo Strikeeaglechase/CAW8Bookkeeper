@@ -15,7 +15,7 @@ class Scoreboard extends SlashCommand {
 	async run({ interaction, framework, app }: SlashCommandEvent<Application>) {
 		const m = await interaction.guild.members.fetch(interaction.user.id);
 		if (!m || !m.permissions.has(PermissionFlagsBits.BanMembers)) {
-			return framework.error(`You must be "admin" to run this command`);
+			return framework.error(`You must be "admin" to run this command`, true);
 		}
 
 		const existing = await app.scoreboardMessages.collection.findOne({ guildId: interaction.guild.id });

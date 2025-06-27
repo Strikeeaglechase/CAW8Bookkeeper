@@ -9,7 +9,7 @@ import {
 	InteractionEditReplyOptions
 } from "discord.js";
 
-export function interactionConfirm(prompt: string, iter: CommandInteraction) {
+export function interactionConfirm(prompt: string, iter: CommandInteraction, ephemeral = false) {
 	const emb = new EmbedBuilder();
 
 	emb.setTitle("Confirmation");
@@ -27,7 +27,7 @@ export function interactionConfirm(prompt: string, iter: CommandInteraction) {
 	if (iter.deferred || iter.replied) {
 		iter.editReply({ embeds: [emb], components: [row] });
 	} else {
-		iter.reply({ embeds: [emb], components: [row] });
+		iter.reply({ embeds: [emb], components: [row], ephemeral: ephemeral });
 	}
 
 	return new Promise<boolean>(res => {
