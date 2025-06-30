@@ -48,6 +48,8 @@ interface LeaderboardUserData {
 	opsAttended: number;
 	uniqueOpsAttended: number;
 	opsAttendedNames: string[];
+	opsWithDeaths: number;
+	survivalRate: number;
 }
 
 export type CompletionType = "Arrested" | "Vertical" | "DNF" | "Airfield" | "Nonpilot" | "NA";
@@ -1174,40 +1176,11 @@ class Application {
 		sheet.saveUpdatedCells();
 	}
 
-	private async createScoreboardMessage() {
-		const embed = new EmbedBuilder({});
-
-		const ops = await this.ops.collection.find({}).toArray();
-		const leaderboardUsers: Record<string, LeaderboardUserData> = {};
-		ops.forEach(op => {
-			op.members.forEach(member => {
-				if (!leaderboardUsers[member.name]) {
-					leaderboardUsers[member.name] = {
-						username: member.name,
-						opsAttended: 0,
-						uniqueOpsAttended: 0,
-						wireScore: 0,
-						totalWires: 0,
-						wireGpa: "0",
-						opsAttendedNames: []
-					};
-				}
-
-				leaderboardUsers[member.name].opsAttended++;
-				leaderboardUsers[member.name].opsAttendedNames.push(op.name);
-				if (member.wire) {
-					leaderboardUsers[member.name].wireScore += wireScore(member.wire);
-					leaderboardUsers[member.name].totalWires++;
-					leaderboardUsers[member.name].wireGpa = (leaderboardUsers[member.name].wireScore / leaderboardUsers[member.name].totalWires).toFixed(2);
-				}
-				leaderboardUsers[member.name].uniqueOpsAttended = new Set(leaderboardUsers[member.name].opsAttendedNames).size;
-			});
-		});
-
+	private leaderboardMessage(leaderboardUsers: Record<string, LeaderboardUserData>, leaderboardLength: number) {
 		const attendenceTable: (string | number)[][] = [["#", "Username", "Ops Attended", "Unique Ops Attended"]];
 		const wireTable: (string | number)[][] = [["#", "Username", "Wire GPA", "Total Wires"]];
+		const survRateTable: (string | number)[][] = [["#", "Username", "Survival Rate", "Ops Attended", "Ops Withoout Deaths"]];
 		const leaderboardUsersArray = Object.values(leaderboardUsers).sort((a, b) => b.opsAttended - a.opsAttended);
-		const leaderboardLength = 30;
 
 		leaderboardUsersArray.forEach((user, idx) => {
 			if (idx >= leaderboardLength) return;
@@ -1226,7 +1199,71 @@ class Application {
 		wireTable.sort((a, b) => (typeof a[2] === "number" && typeof b[2] === "number" ? b[2] - a[2] : 0));
 		const attendenceText = this.table(attendenceTable, 32).join("\n");
 		const wireText = this.table(wireTable, 32).join("\n");
-		embed.setDescription(`**Ops Attended:** \`\`\`ansi\n${attendenceText}\n\`\`\`\n\n**Wire GPA:** \`\`\`${wireText}\n\`\`\``);
+
+		const survRateTableSorted = Object.values(leaderboardUsers).sort((a, b) => b.survivalRate - a.survivalRate);
+		let survRateLdbIdx = 0;
+		survRateTableSorted.forEach((user, idx) => {
+			if (survRateLdbIdx >= leaderboardLength) return;
+			if (user.opsAttended < 15) return;
+			survRateTable.push([survRateLdbIdx + 1, user.username, user.survivalRate.toFixed(2) + "%", user.opsAttended, user.opsAttended - user.opsWithDeaths]);
+			survRateLdbIdx++;
+		});
+
+		const emebedDescription = `**Ops Attended:** \`\`\`ansi\n${attendenceText}\n\`\`\`\n\n**Wire GPA:** \`\`\`${wireText}\n\`\`\`\n\n**Survival Rate:** \`\`\`${this.table(
+			survRateTable,
+			32
+		).join("\n")}\n\`\`\``;
+		return emebedDescription;
+	}
+
+	private async createScoreboardMessage() {
+		const embed = new EmbedBuilder({});
+
+		const ops = await this.ops.collection.find({}).toArray();
+		const leaderboardUsers: Record<string, LeaderboardUserData> = {};
+		ops.forEach(op => {
+			op.members.forEach(member => {
+				if (!leaderboardUsers[member.name]) {
+					leaderboardUsers[member.name] = {
+						username: member.name,
+						opsAttended: 0,
+						uniqueOpsAttended: 0,
+						wireScore: 0,
+						totalWires: 0,
+						wireGpa: "0",
+						opsAttendedNames: [],
+						opsWithDeaths: 0,
+						survivalRate: 0
+					};
+				}
+
+				leaderboardUsers[member.name].opsAttended++;
+				leaderboardUsers[member.name].opsAttendedNames.push(op.name);
+				if (member.combatDeaths > 0) {
+					leaderboardUsers[member.name].opsWithDeaths++;
+				}
+				leaderboardUsers[member.name].survivalRate =
+					((leaderboardUsers[member.name].opsAttended - leaderboardUsers[member.name].opsWithDeaths) / leaderboardUsers[member.name].opsAttended) * 100;
+
+				if (member.wire) {
+					leaderboardUsers[member.name].wireScore += wireScore(member.wire);
+					leaderboardUsers[member.name].totalWires++;
+					leaderboardUsers[member.name].totalWires += member.bolters ?? 0;
+					leaderboardUsers[member.name].wireGpa = (leaderboardUsers[member.name].wireScore / leaderboardUsers[member.name].totalWires).toFixed(2);
+				}
+				leaderboardUsers[member.name].uniqueOpsAttended = new Set(leaderboardUsers[member.name].opsAttendedNames).size;
+			});
+		});
+		const desiredLeaderboardLength = 30;
+
+		let leaderboardLength = desiredLeaderboardLength;
+		let emebedDescription = this.leaderboardMessage(leaderboardUsers, leaderboardLength);
+		while (emebedDescription.length > 4000 && leaderboardLength > 1) {
+			leaderboardLength--;
+			emebedDescription = this.leaderboardMessage(leaderboardUsers, leaderboardLength);
+		}
+
+		embed.setDescription(emebedDescription);
 		embed.setFooter({ text: `Top ${leaderboardLength} users since 23 July 2023\n ` });
 		embed.setTimestamp();
 		embed.setAuthor({
