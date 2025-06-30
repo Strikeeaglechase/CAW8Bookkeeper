@@ -1170,7 +1170,7 @@ class Application {
 	private leaderboardMessage(leaderboardUsers: Record<string, LeaderboardUserData>, leaderboardLength: number) {
 		const attendenceTable: (string | number)[][] = [["#", "Username", "Ops Attended", "Unique Ops Attended"]];
 		const wireTable: (string | number)[][] = [["#", "Username", "Wire GPA", "Total Wires"]];
-		const survRateTable: (string | number)[][] = [["#", "Username", "Survival Rate", "Ops Attended", "Ops Withoout Deaths"]];
+		const survRateTable: (string | number)[][] = [["#", "Username", "Survived %", "Ops Attended", "Ops Survived"]];
 		const leaderboardUsersArray = Object.values(leaderboardUsers).sort((a, b) => b.opsAttended - a.opsAttended);
 
 		leaderboardUsersArray.forEach((user, idx) => {
