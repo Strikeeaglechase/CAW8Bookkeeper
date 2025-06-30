@@ -12,6 +12,9 @@ import { v4 as uuidv4 } from "uuid";
 import { isDev } from "./index.js";
 import { SheetParseResult } from "./parseSheets.js";
 
+const minOpsToPostOnScoreboard = 25;
+const minWiresToPostOnWireGPAScoreboard = 15;
+
 export const timeslots = [
 	"Monday 1200 EST", //
 	"Friday 2000 EST",
@@ -402,7 +405,8 @@ class Application {
 		// 	console.log(`Renaming ${pic} to chaperone${idx}.png`);
 		// 	fs.renameSync(`../chaperone/${pic}`, `../chaperone/chaperone${idx}.png`);
 		// });
-		const scoreboardUpdateRate = process.env.IS_DEV == "true" ? 1000 * 10 : 1000 * 60; // 10 seconds in dev, 1 minute in prod
+		this.updateScoreboards();
+		const scoreboardUpdateRate = process.env.IS_DEV == "true" ? 1000 * 10 : 1000 * 60 * 60; // 10 seconds in dev, 1 minute in prod
 		setInterval(() => this.updateScoreboards(), scoreboardUpdateRate);
 	}
 
@@ -1177,7 +1181,6 @@ class Application {
 		const wireTable: (string | number)[][] = [["#", "Username", "Wire GPA", "Total Wires"]];
 		const survRateTable: (string | number)[][] = [["#", "Username", "Survived %", "Ops Attended", "Ops Survived"]];
 		const leaderboardUsersArray = Object.values(leaderboardUsers).sort((a, b) => b.opsAttended - a.opsAttended);
-		const minOps = 25;
 
 		leaderboardUsersArray.forEach((user, idx) => {
 			if (idx < leaderboardLength) {
@@ -1193,7 +1196,7 @@ class Application {
 		let wireLdbIdx = 0;
 		let widx = 0;
 		leaderboardUsersArraySortedByWire.forEach((user, idx) => {
-			if (user.totalWires < 20) return;
+			if (user.totalWires < minWiresToPostOnWireGPAScoreboard) return;
 			if (wireLdbIdx < leaderboardLength) {
 				wireTable.push([wireLdbIdx + 1, user.username, user.wireGpa, user.totalWires]);
 				wireLdbIdx++;
@@ -1213,7 +1216,7 @@ class Application {
 		let sidx = 0;
 		let survRateLdbIdx = 0;
 		survRateTableSorted.forEach((user, idx) => {
-			if (user.opsAttended < minOps) return;
+			if (user.opsAttended < minOpsToPostOnScoreboard) return;
 			if (survRateLdbIdx < leaderboardLength) {
 				survRateTable.push([
 					survRateLdbIdx + 1,

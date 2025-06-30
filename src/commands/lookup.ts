@@ -140,7 +140,9 @@ class Lookup extends SlashCommand {
 			},
 			{
 				name: "Leaderboard Positions",
-				value: `Attendance: ${userEntry.leaderboardPositions.attendance}\nWire GPA: ${userEntry.leaderboardPositions.wire}\n Survival Rate: ${userEntry.leaderboardPositions.survivalRate}`,
+				value: `Attendance: ${userEntry.leaderboardPositions?.attendance ?? "N/A"}\nWire GPA: ${
+					userEntry.leaderboardPositions?.wire ?? "N/A"
+				}\n Survival Rate: ${userEntry.leaderboardPositions?.survivalRate ?? "N/A"}`,
 				inline: true
 			}
 		]);
