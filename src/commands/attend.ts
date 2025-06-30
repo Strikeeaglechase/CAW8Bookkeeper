@@ -2,7 +2,7 @@ import { EmbedBuilder } from "discord.js";
 import { SlashCommand, SlashCommandEvent } from "strike-discord-framework/dist/slashCommand.js";
 import { SArg } from "strike-discord-framework/dist/slashCommandArgumentParser.js";
 
-import { Application, CompletionType, DBOpMember, formatAndValidateSlot } from "../application.js";
+import { Application, AttendanceRecover, CompletionType, DBOpMember, formatAndValidateSlot } from "../application.js";
 import { finishTypes } from "./record.js";
 
 const ACTIVE_OP_TIMEOUT = 90 * 60 * 1000; // 90 minutes
@@ -19,11 +19,12 @@ class Attend extends SlashCommand {
 		@SArg({ min: 0, max: 4, required: false }) wire: number
 	) {
 		let opId = app.activeOp;
-		const attendanceRecovery = await app.attendanceRecoveries.collection.find({ userDiscordId: interaction.user.id }).toArray();
-
-		if (attendanceRecovery.length > 0) {
-			attendanceRecovery.sort((a, b) => a.createdAt - b.createdAt);
-			opId = attendanceRecovery[0].opId;
+		const attendanceRecoveries = await app.attendanceRecoveries.collection.find({ userDiscordId: interaction.user.id }).toArray();
+		let attendanceRecovery: AttendanceRecover = null;
+		if (attendanceRecoveries.length > 0) {
+			attendanceRecoveries.sort((a, b) => a.createdAt - b.createdAt);
+			attendanceRecovery = attendanceRecoveries[0];
+			opId = attendanceRecovery.opId;
 		} else if (app.activeOp == null || Date.now() - app.opActiveAt > ACTIVE_OP_TIMEOUT) {
 			await interaction.reply(framework.error("No active op set, have the person running the op run `/op enable`"));
 			return;
@@ -108,8 +109,8 @@ class Attend extends SlashCommand {
 			await app.ops.collection.updateOne({ id: op.id }, { $push: { members: newOpMember } });
 		}
 
-		if (attendanceRecovery.length > 0) {
-			app.attendanceRecoveries.collection.deleteOne({ id: attendanceRecovery[0].id });
+		if (attendanceRecovery) {
+			app.attendanceRecoveries.collection.deleteOne({ id: attendanceRecovery.id });
 		}
 
 		const successEmbed = new EmbedBuilder({ color: 0x00ff00 });
