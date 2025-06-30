@@ -38,6 +38,11 @@ export interface OpUser {
 	username: string;
 	discordId: string;
 	steamId: string;
+	leaderboardPositions?: {
+		wire: number;
+		attendance: number;
+		survivalRate: number;
+	};
 }
 
 interface LeaderboardUserData {
@@ -1172,19 +1177,31 @@ class Application {
 		const wireTable: (string | number)[][] = [["#", "Username", "Wire GPA", "Total Wires"]];
 		const survRateTable: (string | number)[][] = [["#", "Username", "Survived %", "Ops Attended", "Ops Survived"]];
 		const leaderboardUsersArray = Object.values(leaderboardUsers).sort((a, b) => b.opsAttended - a.opsAttended);
+		const minOps = 25;
 
 		leaderboardUsersArray.forEach((user, idx) => {
-			if (idx >= leaderboardLength) return;
-			attendenceTable.push([idx + 1, user.username, user.opsAttended, user.uniqueOpsAttended]);
+			if (idx < leaderboardLength) {
+				attendenceTable.push([idx + 1, user.username, user.opsAttended, user.uniqueOpsAttended]);
+			}
+			this.users.collection.updateOne({ username: user.username }, { $set: { "leaderboardPositions.attendance": idx + 1 } }).catch(e => {
+				this.log.error(`Failed to update attendance leaderboard position for ${user.username}: ${e}`);
+			});
 		});
 
 		const leaderboardUsersArraySortedByWire = Object.values(leaderboardUsers).sort((a, b) => parseFloat(b.wireGpa) - parseFloat(a.wireGpa));
+
 		let wireLdbIdx = 0;
+		let widx = 0;
 		leaderboardUsersArraySortedByWire.forEach((user, idx) => {
-			if (wireLdbIdx >= leaderboardLength) return;
-			if (user.totalWires < 15) return;
-			wireTable.push([wireLdbIdx + 1, user.username, user.wireGpa, user.totalWires]);
-			wireLdbIdx++;
+			if (user.totalWires < 20) return;
+			if (wireLdbIdx < leaderboardLength) {
+				wireTable.push([wireLdbIdx + 1, user.username, user.wireGpa, user.totalWires]);
+				wireLdbIdx++;
+			}
+			this.users.collection.updateOne({ username: user.username }, { $set: { "leaderboardPositions.wire": widx + 1 } }).catch(e => {
+				this.log.error(`Failed to update wire leaderboard position for ${user.username}: ${e}`);
+			});
+			widx++;
 		});
 
 		wireTable.sort((a, b) => (typeof a[2] === "number" && typeof b[2] === "number" ? b[2] - a[2] : 0));
@@ -1192,12 +1209,25 @@ class Application {
 		const wireText = this.table(wireTable, 32).join("\n");
 
 		const survRateTableSorted = Object.values(leaderboardUsers).sort((a, b) => b.survivalRate - a.survivalRate);
+
+		let sidx = 0;
 		let survRateLdbIdx = 0;
 		survRateTableSorted.forEach((user, idx) => {
-			if (survRateLdbIdx >= leaderboardLength) return;
-			if (user.opsAttended < 15) return;
-			survRateTable.push([survRateLdbIdx + 1, user.username, user.survivalRate.toFixed(2) + "%", user.opsAttended, user.opsAttended - user.opsWithDeaths]);
-			survRateLdbIdx++;
+			if (user.opsAttended < minOps) return;
+			if (survRateLdbIdx < leaderboardLength) {
+				survRateTable.push([
+					survRateLdbIdx + 1,
+					user.username,
+					user.survivalRate.toFixed(2) + "%",
+					user.opsAttended,
+					user.opsAttended - user.opsWithDeaths
+				]);
+				survRateLdbIdx++;
+			}
+			this.users.collection.updateOne({ username: user.username }, { $set: { "leaderboardPositions.survivalRate": sidx + 1 } }).catch(e => {
+				this.log.error(`Failed to update survival rate leaderboard position for ${user.username}: ${e}`);
+			});
+			sidx++;
 		});
 
 		const emebedDescription = `**Ops Attended:** \`\`\`ansi\n${attendenceText}\n\`\`\`\n\n**Wire GPA:** \`\`\`${wireText}\n\`\`\`\n\n**Survival Rate:** \`\`\`${this.table(
