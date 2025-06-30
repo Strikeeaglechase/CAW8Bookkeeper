@@ -12,7 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { isDev } from "./index.js";
 import { SheetParseResult } from "./parseSheets.js";
 
-const minOpsToPostOnScoreboard = 25;
+const minOpsToPostOnSurvRateScoreboard = 15;
 const minWiresToPostOnWireGPAScoreboard = 15;
 
 export const timeslots = [
@@ -1225,7 +1225,7 @@ class Application {
 		let sidx = 0;
 		let survRateLdbIdx = 0;
 		survRateTableSorted.forEach((user, idx) => {
-			if (user.opsAttended < minOpsToPostOnScoreboard) return;
+			if (user.opsAttended < minOpsToPostOnSurvRateScoreboard) return;
 			if (survRateLdbIdx < leaderboardLength) {
 				survRateTable.push([
 					survRateLdbIdx + 1,
