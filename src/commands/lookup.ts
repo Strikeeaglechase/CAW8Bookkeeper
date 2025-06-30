@@ -137,6 +137,13 @@ class Lookup extends SlashCommand {
 				name: "Wire GPA",
 				value: (totalWireScore / totalWireCounts).toFixed(2),
 				inline: true
+			},
+			{
+				name: "Leaderboard Positions",
+				value: `Attendance: ${userEntry.leaderboardPositions?.attendance ?? "N/A"}\nWire GPA: ${
+					userEntry.leaderboardPositions?.wire ?? "N/A"
+				}\n Survival Rate: ${userEntry.leaderboardPositions?.survivalRate ?? "N/A"}`,
+				inline: true
 			}
 		]);
 
