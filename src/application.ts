@@ -114,6 +114,13 @@ export interface ScoreboardMessage {
 	id: string;
 }
 
+export interface AttendanceRecover {
+	id: string;
+	opId: string;
+	userDiscordId: string;
+	createdAt: number;
+}
+
 export function formatAndValidateSlot(slot: string) {
 	if (slot == null || slot.length == 0) return null;
 	slot = slot.toUpperCase();
@@ -237,6 +244,7 @@ class Application {
 	public slots: CollectionManager<OpSlotConfig>;
 	public reservations: CollectionManager<OpFLReservations>;
 	public scoreboardMessages: CollectionManager<ScoreboardMessage>;
+	public attendanceRecoveries: CollectionManager<AttendanceRecover>;
 	private configDb: CollectionManager<Config>;
 	private userNicknames: CollectionManager<UserNicknameEntry>;
 
@@ -255,6 +263,7 @@ class Application {
 	public async init() {
 		this.log.info(`Application has started!`);
 		this.scoreboardMessages = await this.framework.database.collection("scoreboard-messages", false, "id");
+		this.attendanceRecoveries = await this.framework.database.collection("attendanceRecoveries", false, "id");
 		this.ops = await this.framework.database.collection("ops", false, "id");
 		this.slots = await this.framework.database.collection("slots", false, "id");
 		this.reservations = await this.framework.database.collection("reservations", false, "id");

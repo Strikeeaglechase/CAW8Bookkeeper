@@ -18,15 +18,29 @@ class Attend extends SlashCommand {
 		@SArg({ required: false }) bolters: number,
 		@SArg({ min: 0, max: 4, required: false }) wire: number
 	) {
-		if (app.activeOp == null || Date.now() - app.opActiveAt > ACTIVE_OP_TIMEOUT) {
+		let opId = app.activeOp;
+		const attendanceRecovery = await app.attendanceRecoveries.collection.find({ userDiscordId: interaction.user.id }).toArray();
+
+		if (attendanceRecovery.length > 0) {
+			attendanceRecovery.sort((a, b) => a.createdAt - b.createdAt);
+			opId = attendanceRecovery[0].opId;
+		} else if (app.activeOp == null || Date.now() - app.opActiveAt > ACTIVE_OP_TIMEOUT) {
 			await interaction.reply(framework.error("No active op set, have the person running the op run `/op enable`"));
 			return;
 		}
 
-		const op = await app.ops.collection.findOne({ id: app.activeOp });
+		const op = await app.ops.collection.findOne({ id: opId });
 		if (!op) {
 			await interaction.reply(framework.error("Active op is set to an op that does not exist, have the person running the op run `/op enable`"));
 			return;
+		}
+
+		if (attendanceRecovery) {
+			const emb = new EmbedBuilder();
+			emb.setDescription(`Warning: recording attendance for ${op.name} ${op.timeslot} as you were marked for recovery attendance`);
+			emb.setColor(0xff0000);
+			emb.setFooter({ text: `Ping <@&1383607459507212398> if this is a mistake or you entered the wrong attendance` });
+			interaction.channel.send({ embeds: [emb] });
 		}
 
 		const validSlot = formatAndValidateSlot(slot);
@@ -92,6 +106,10 @@ class Attend extends SlashCommand {
 			};
 
 			await app.ops.collection.updateOne({ id: op.id }, { $push: { members: newOpMember } });
+		}
+
+		if (attendanceRecovery.length > 0) {
+			app.attendanceRecoveries.collection.deleteOne({ id: attendanceRecovery[0].id });
 		}
 
 		const successEmbed = new EmbedBuilder({ color: 0x00ff00 });
