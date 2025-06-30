@@ -406,7 +406,7 @@ class Application {
 		// 	fs.renameSync(`../chaperone/${pic}`, `../chaperone/chaperone${idx}.png`);
 		// });
 		this.updateScoreboards();
-		const scoreboardUpdateRate = process.env.IS_DEV == "true" ? 1000 * 10 : 1000 * 60 * 60; // 10 seconds in dev, 1 minute in prod
+		const scoreboardUpdateRate = process.env.IS_DEV == "true" ? 1000 * 10 : 1000 * 60 * 60; // 10 seconds in dev, 1 hour in prod
 		setInterval(() => this.updateScoreboards(), scoreboardUpdateRate);
 	}
 
