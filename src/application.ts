@@ -491,6 +491,11 @@ class Application {
 
 			res.json({ timedOutBy: timeoutAction.executor.id });
 		});
+
+		this.api.get("/health", (req, res) => {
+			res.sendStatus(200);
+		});
+
 		this.api.get("/cawlogo.png", (req, res) => {
 			const filePath = path.resolve("../CAWLOGO.png");
 			if (!fs.existsSync(filePath)) {
