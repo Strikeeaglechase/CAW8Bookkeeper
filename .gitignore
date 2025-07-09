@@ -1,4 +1,5 @@
 dist
+docker-compose.yaml
 
 *.zip
 caw8-creds.json

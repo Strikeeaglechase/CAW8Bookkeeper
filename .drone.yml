@@ -1,0 +1,31 @@
+kind: pipeline
+type: kubernetes
+name: default
+
+metadata:
+   namespace: drone
+
+volumes:
+   - name: cache
+     host:
+        path: /tmp/cache
+
+steps:
+   - name: build-docker
+     image: plugins/docker
+     when:
+        branch:
+           - master
+        event:
+           include:
+              - push
+              - tag
+     settings:
+        repo: ghcr.io/Strikeeaglechase/CAW8Bookkeeper
+        registry: ghcr.io
+        tags:
+           #- ${DRONE_TAG}
+           - latest
+        username: Strikeeaglechase
+        password:
+           from_secret: github-token
