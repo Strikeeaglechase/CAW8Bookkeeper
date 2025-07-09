@@ -5,11 +5,6 @@ name: default
 metadata:
    namespace: drone
 
-volumes:
-   - name: cache
-     host:
-        path: /tmp/cache
-
 steps:
    - name: build-docker
      image: plugins/docker
