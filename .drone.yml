@@ -16,7 +16,7 @@ steps:
               - push
               - tag
      settings:
-        repo: ghcr.io/Strikeeaglechase/CAW8Bookkeeper
+        repo: ghcr.io/Strikeeaglechase/bookkeeper
         registry: ghcr.io
         tags:
            #- ${DRONE_TAG}
