@@ -11,6 +11,4 @@ COPY ops.json ./
 COPY CAWLOGO.png ./
 RUN npm run build
 
-EXPOSE 8011
-
 CMD ["npm", "start"]
