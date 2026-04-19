@@ -16,20 +16,20 @@ const minOpsToPostOnSurvRateScoreboard = 15;
 const minWiresToPostOnWireGPAScoreboard = 15;
 
 export const timeslots = [
-	"Monday 1200 EST", //
-	"Friday 2000 EST",
 	"Saturday 1400 EST",
 	"Saturday 1600 EST",
 	"Sunday 1400 EST",
-	"Sunday 1600 EST"
+	"Sunday 1600 EST",
+	"Monday 1200 EST",
+	"Friday 2000 EST",
 ];
 const _timeslotColors = {
-	"Monday 1200 EST": [255, 229, 153],
-	"Friday 2000 EST": [255, 153, 0],
 	"Saturday 1400 EST": [164, 194, 244],
 	"Saturday 1600 EST": [234, 153, 153],
 	"Sunday 1400 EST": [147, 196, 125],
-	"Sunday 1600 EST": [255, 229, 153]
+	"Sunday 1600 EST": [255, 229, 153],
+	"Monday 1200 EST": [255, 229, 153],
+	"Friday 2000 EST": [255, 153, 0],
 };
 const timeslotColors: Record<string, { red: number; green: number; blue: number }> = {};
 Object.keys(_timeslotColors).forEach(key => {
