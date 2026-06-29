@@ -1,4 +1,14 @@
-import { AuditLogEvent, CommandInteraction, EmbedBuilder, GuildMember, InteractionEditReplyOptions, MessagePayload, TextChannel } from "discord.js";
+import {
+	AuditLogEvent,
+	Client,
+	CommandInteraction,
+	EmbedBuilder,
+	GuildMember,
+	InteractionEditReplyOptions,
+	MessagePayload,
+	TextChannel,
+	VoiceChannel
+} from "discord.js";
 import express from "express";
 import fs from "fs";
 import { JWT } from "google-auth-library";
@@ -9,27 +19,22 @@ import { CollectionManager } from "strike-discord-framework/dist/collectionManag
 import Logger from "strike-discord-framework/dist/logger.js";
 import { v4 as uuidv4 } from "uuid";
 
+import { joinVoiceChannel } from "@discordjs/voice";
+
 import { isDev } from "./index.js";
 import { SheetParseResult } from "./parseSheets.js";
 
 const minOpsToPostOnSurvRateScoreboard = 15;
 const minWiresToPostOnWireGPAScoreboard = 15;
 
-export const timeslots = [
-	"Saturday 1400 EST",
-	"Saturday 1600 EST",
-	"Sunday 1400 EST",
-	"Sunday 1600 EST",
-	"Monday 1200 EST",
-	"Friday 2000 EST",
-];
+export const timeslots = ["Saturday 1400 EST", "Saturday 1600 EST", "Sunday 1400 EST", "Sunday 1600 EST", "Monday 1200 EST", "Friday 2000 EST"];
 const _timeslotColors = {
 	"Saturday 1400 EST": [164, 194, 244],
 	"Saturday 1600 EST": [234, 153, 153],
 	"Sunday 1400 EST": [147, 196, 125],
 	"Sunday 1600 EST": [255, 229, 153],
 	"Monday 1200 EST": [255, 229, 153],
-	"Friday 2000 EST": [255, 153, 0],
+	"Friday 2000 EST": [255, 153, 0]
 };
 const timeslotColors: Record<string, { red: number; green: number; blue: number }> = {};
 Object.keys(_timeslotColors).forEach(key => {
@@ -504,6 +509,39 @@ class Application {
 				return;
 			}
 			res.sendFile(filePath);
+		});
+
+		this.api.get("/sound/:channel/", async (req, res) => {
+			const client: Client = this.framework.client;
+			const channel = await client.channels.fetch(req.params.channel).catch(() => {});
+			if (!channel || !channel.isVoiceBased() || !(channel instanceof VoiceChannel)) {
+				return res.status(404).send(`Invalid channel`);
+			}
+
+			const sbId = req.query.soundboard;
+			if (!sbId || typeof sbId != "string") return;
+
+			const sb = await channel.guild.soundboardSounds.fetch(sbId).catch(() => {});
+			if (!sb) return res.status(404).send(`Invalid soundboard`);
+
+			const voiceConn = joinVoiceChannel({
+				guildId: channel.guild.id,
+				channelId: channel.id,
+				adapterCreator: channel.guild.voiceAdapterCreator,
+				selfDeaf: false
+			});
+			// await new Promise<void>(res =>
+			// 	voiceConn.on("stateChange", st => {
+			// 		if (st.status == VoiceConnectionStatus.Ready) {
+			// 			res();
+			// 		}
+			// 	})
+			// );
+			await channel.sendSoundboardSound(sb);
+			voiceConn.disconnect();
+			voiceConn.destroy();
+
+			res.sendStatus(200);
 		});
 
 		this.api.listen(parseInt(process.env.PORT), () => {
